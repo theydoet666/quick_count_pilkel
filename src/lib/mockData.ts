@@ -1,4 +1,4 @@
-import { ElectionSummary, TPSRecapItem, Candidate, AuditLog } from '../types/database.types';
+import { ElectionSummary, TPSRecapItem, Candidate, CandidateSummary, ElectionSettings, AuditLog } from '../types/database.types';
 
 export const MOCK_ELECTION = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -130,35 +130,65 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   }
 ];
 
-export const calculateSummary = (tpsList: TPSRecapItem[]): ElectionSummary => {
+export const DEFAULT_ELECTION_SETTINGS: ElectionSettings = {
+  title: 'PILKEL DESA BELEGA 2026',
+  subtitle: 'Kecamatan Blahbatuh • Gianyar, Bali',
+  organizer: 'Panwaslukel Desa Belega',
+  logo_url: null
+};
+
+export const calculateSummary = (
+  tpsList: TPSRecapItem[],
+  candidatesList: Candidate[] = MOCK_CANDIDATES
+): ElectionSummary => {
   const verifiedList = tpsList.filter(t => t.status === 'verified' || t.status === 'locked');
   const total_tps = tpsList.length;
   const verified_tps = verifiedList.length;
   const total_dpt = tpsList.reduce((sum, t) => sum + t.registered_voters, 0);
   
-  let cand1Votes = 0;
-  let cand2Votes = 0;
-  let cand1Leading = 0;
-  let cand2Leading = 0;
+  // Track votes & leading count per candidate number
+  const candidateVotesMap: Record<number, number> = {};
+  const candidateLeadingMap: Record<number, number> = {};
   let total_invalid_votes = 0;
 
-  verifiedList.forEach(t => {
-    const c1 = t.candidate_votes['1']?.votes || 0;
-    const c2 = t.candidate_votes['2']?.votes || 0;
-    cand1Votes += c1;
-    cand2Votes += c2;
-    total_invalid_votes += t.invalid_votes_count;
-
-    if (t.leading_candidate_number === 1) cand1Leading++;
-    if (t.leading_candidate_number === 2) cand2Leading++;
+  candidatesList.forEach(c => {
+    candidateVotesMap[c.number] = 0;
+    candidateLeadingMap[c.number] = 0;
   });
 
-  const total_valid_votes = cand1Votes + cand2Votes;
+  verifiedList.forEach(t => {
+    candidatesList.forEach(c => {
+      const votes = t.candidate_votes[String(c.number)]?.votes || 0;
+      candidateVotesMap[c.number] = (candidateVotesMap[c.number] || 0) + votes;
+    });
+
+    total_invalid_votes += t.invalid_votes_count;
+
+    if (t.leading_candidate_number && candidateLeadingMap[t.leading_candidate_number] !== undefined) {
+      candidateLeadingMap[t.leading_candidate_number] = (candidateLeadingMap[t.leading_candidate_number] || 0) + 1;
+    }
+  });
+
+  const total_valid_votes = Object.values(candidateVotesMap).reduce((sum, v) => sum + v, 0);
   const total_votes_entered = total_valid_votes + total_invalid_votes;
   const participation_rate = total_dpt > 0 ? parseFloat(((total_votes_entered / total_dpt) * 100).toFixed(1)) : 0;
 
-  const c1Pct = total_valid_votes > 0 ? parseFloat(((cand1Votes / total_valid_votes) * 100).toFixed(1)) : 0;
-  const c2Pct = total_valid_votes > 0 ? parseFloat(((cand2Votes / total_valid_votes) * 100).toFixed(1)) : 0;
+  const candidateSummaries: CandidateSummary[] = candidatesList.map(c => {
+    const total_votes = candidateVotesMap[c.number] || 0;
+    const percentage = total_valid_votes > 0 ? parseFloat(((total_votes / total_valid_votes) * 100).toFixed(1)) : 0;
+
+    return {
+      id: c.id,
+      number: c.number,
+      name: c.name,
+      vice_name: c.vice_name,
+      photo_url: c.photo_url,
+      color_hex: c.color_hex,
+      total_votes,
+      percentage,
+      banjar_leading_count: candidateLeadingMap[c.number] || 0
+    };
+  });
 
   return {
     total_tps,
@@ -168,30 +198,7 @@ export const calculateSummary = (tpsList: TPSRecapItem[]): ElectionSummary => {
     total_invalid_votes,
     total_votes_entered,
     participation_rate,
-    candidates: [
-      {
-        id: '11111111-1111-1111-1111-111111111111',
-        number: 1,
-        name: 'I Wayan Suardika, S.E.',
-        vice_name: 'I Made Karjana',
-        photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
-        color_hex: '#9C4A32',
-        total_votes: cand1Votes,
-        percentage: c1Pct,
-        banjar_leading_count: cand1Leading
-      },
-      {
-        id: '22222222-2222-2222-2222-222222222222',
-        number: 2,
-        name: 'Dr. I Nyoman Putra Astawa, M.Si.',
-        vice_name: 'I Ketut Widana',
-        photo_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=300',
-        color_hex: '#B8933F',
-        total_votes: cand2Votes,
-        percentage: c2Pct,
-        banjar_leading_count: cand2Leading
-      }
-    ]
+    candidates: candidateSummaries
   };
 };
 

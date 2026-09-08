@@ -10,42 +10,42 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ tps, onClose }) =>
   if (!tps) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-space-md bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-space-md bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-[#111827] border border-slate-700/80 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
         
         {/* Modal Header */}
-        <div className="p-space-md border-b border-surface-container flex items-center justify-between bg-surface-container-low">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#0f172a]">
           <div>
-            <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
+            <h3 className="font-headline-sm text-base md:text-lg text-white font-bold">
               Bukti Formulir C-Hasil — {tps.code}
             </h3>
-            <p className="text-body-sm text-on-surface-variant">
-              {tps.banjar_name} (Status: <span className="uppercase font-bold text-primary">{tps.status}</span>)
+            <p className="text-xs text-slate-400">
+              {tps.banjar_name} (Status: <span className="uppercase font-bold text-emerald-400">{tps.status}</span>)
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors"
           >
             <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-space-md overflow-y-auto flex-1 flex flex-col items-center justify-center bg-surface">
+        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center bg-[#070b12]">
           {tps.evidence_photo_url ? (
             <img
               src={tps.evidence_photo_url}
               alt={`Formulir C-Hasil ${tps.code}`}
-              className="max-h-[60vh] w-auto object-contain rounded border border-outline-variant shadow-sm"
+              className="max-h-[60vh] w-auto object-contain rounded-lg border border-slate-700 shadow-xl"
             />
           ) : (
-            <div className="p-space-2xl text-center text-on-surface-variant">
-              <span className="material-symbols-outlined text-5xl text-outline mb-space-xs block">
+            <div className="p-8 text-center text-slate-400">
+              <span className="material-symbols-outlined text-5xl text-slate-600 mb-2 block">
                 no_photography
               </span>
-              <p className="font-semibold">Foto Bukti C-Hasil Belum Diunggah</p>
-              <p className="text-body-sm mt-space-3xs">
+              <p className="font-semibold text-slate-300">Foto Bukti C-Hasil Belum Diunggah</p>
+              <p className="text-xs text-slate-500 mt-1">
                 Foto fisik formulir belum tersedia untuk {tps.code} ({tps.banjar_name}).
               </p>
             </div>
@@ -53,13 +53,13 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ tps, onClose }) =>
         </div>
 
         {/* Modal Footer */}
-        <div className="p-space-sm border-t border-surface-container flex justify-between items-center bg-surface-container-low text-body-sm">
-          <span className="text-on-surface-variant">
-            Suara Sah: <strong className="text-on-surface">{tps.total_valid_votes}</strong> | Tidak Sah: <strong className="text-error">{tps.invalid_votes_count}</strong>
+        <div className="p-3.5 border-t border-slate-800 flex justify-between items-center bg-[#0f172a] text-xs">
+          <span className="text-slate-400">
+            Suara Sah: <strong className="text-white">{tps.total_valid_votes}</strong> | Tidak Sah: <strong className="text-rose-400">{tps.invalid_votes_count}</strong>
           </span>
           <button
             onClick={onClose}
-            className="px-space-md py-space-xs bg-primary text-on-primary font-label-sm rounded font-bold hover:bg-primary/90 transition-colors"
+            className="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-md hover:bg-emerald-500 transition-colors shadow-md text-xs"
           >
             Tutup
           </button>
@@ -69,3 +69,4 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ tps, onClose }) =>
     </div>
   );
 };
+

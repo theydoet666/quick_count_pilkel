@@ -9,6 +9,13 @@ export interface Profile {
   created_at: string;
 }
 
+export interface ElectionSettings {
+  title: string;
+  subtitle: string;
+  organizer: string;
+  logo_url: string | null;
+}
+
 export interface Election {
   id: string;
   name: string;
@@ -16,6 +23,7 @@ export interface Election {
   status: ElectionStatus;
   created_at: string;
 }
+
 
 export interface Candidate {
   id: string;

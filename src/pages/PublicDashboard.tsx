@@ -17,25 +17,67 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
   onAdminClick,
   isAdminLoggedIn
 }) => {
-  const { summary, tpsList, isLive, lastUpdated } = useRealtimeResults();
+  const { summary, tpsList, electionSettings, isLive, lastUpdated } = useRealtimeResults();
   const [selectedEvidenceTps, setSelectedEvidenceTps] = useState<TPSRecapItem | null>(null);
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col select-none antialiased">
+    <div className="min-h-screen bg-[#070b12] text-slate-100 flex flex-col select-none antialiased relative overflow-x-hidden bg-tv-grid">
+      
+      {/* Studio Ambient Glow Top Lights */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none -z-0" />
+      <div className="absolute top-28 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none -z-0" />
+      <div className="absolute top-60 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-rose-500/5 rounded-full blur-[140px] pointer-events-none -z-0" />
+
       {/* Top Fixed Broadcast Header */}
       <HeaderBroadcast
         verifiedTpsCount={summary.verified_tps}
         totalTpsCount={summary.total_tps}
         isLive={isLive}
+        title={electionSettings.title}
+        subtitle={electionSettings.subtitle}
+        logoUrl={electionSettings.logo_url}
         onAdminClick={onAdminClick}
         isAdminLoggedIn={isAdminLoggedIn}
       />
 
-      {/* Main Screen Content */}
-      <main className="w-full pt-24 pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop">
+      {/* Main Broadcast Screen Content */}
+      <main className="w-full pt-24 pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop z-10">
+        
+        {/* TV Broadcast Banner Header */}
+        <div className="mb-space-md flex items-center justify-between flex-wrap gap-2 bg-[#111827]/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/60 shadow-xl">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span className="font-black text-xs md:text-sm uppercase tracking-wider text-white">
+              PUSAT TABULASI & HITUNG CEPAT DIGITAL {electionSettings.title}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
+            <span>{tpsList.length} Banjar Dinas / TPS</span>
+            <span className="text-slate-600">•</span>
+            <span>{summary.total_dpt.toLocaleString('id-ID')} DPT</span>
+            <span className="text-slate-600">•</span>
+            <span>
+              {summary.verified_tps === summary.total_tps && summary.total_tps > 0 ? (
+                <span className="text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-bold">
+                  100% Data Final Masuk
+                </span>
+              ) : (
+                <span className="text-amber-300 bg-amber-950/80 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold">
+                  Proses Masuk ({summary.verified_tps}/{summary.total_tps})
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+
+
+        {/* Grid Layout: Left Candidates + Right TPS Breakdown */}
         <div className="grid grid-cols-12 gap-gutter-desktop items-start flex-1">
           
-          {/* Left Panel (5 columns on desktop): Candidate Cards & Summary Metrics */}
+          {/* Left Panel (5 cols desktop): Candidate Face-off Cards & Metrics */}
           <div className="col-span-12 lg:col-span-5 flex flex-col gap-space-md">
             <CandidatePanel
               candidates={summary.candidates}
@@ -45,7 +87,7 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
             <SummaryCards summary={summary} />
           </div>
 
-          {/* Right Panel (7 columns on desktop): TPS Breakdown Table */}
+          {/* Right Panel (7 cols desktop): TPS Breakdown Table */}
           <div className="col-span-12 lg:col-span-7 flex flex-col gap-space-sm h-full">
             <TPSRecapTable
               tpsList={tpsList}
@@ -63,8 +105,14 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
         onClose={() => setSelectedEvidenceTps(null)}
       />
 
-      {/* Bottom Fixed Ticker Footer */}
-      <FooterTicker lastUpdated={lastUpdated} />
+      {/* Bottom Fixed Realtime TV Marquee Ticker */}
+      <FooterTicker
+        lastUpdated={lastUpdated}
+        tpsList={tpsList}
+        organizer={electionSettings.organizer}
+      />
     </div>
   );
 };
+
+

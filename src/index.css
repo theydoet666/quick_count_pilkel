@@ -36,3 +36,92 @@
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
 }
+
+/* TV Broadcast Animations & Utilities */
+@keyframes tv-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-vertical {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(234, 193, 104, 0.25), 0 0 30px rgba(184, 147, 63, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(234, 193, 104, 0.45), 0 0 50px rgba(184, 147, 63, 0.3);
+  }
+}
+
+.animate-tv-shimmer {
+  animation: tv-shimmer 2.5s infinite linear;
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.animate-scroll-vertical {
+  animation: scroll-vertical 24s linear infinite;
+}
+
+.animate-scroll-vertical:hover,
+.animate-scroll-vertical.is-paused {
+  animation-play-state: paused;
+}
+
+.leader-glow {
+  animation: glow-pulse 3s infinite ease-in-out;
+}
+
+/* Studio subtle grid pattern */
+.bg-tv-grid {
+  background-size: 36px 36px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+
