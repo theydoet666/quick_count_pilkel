@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { UserRole, Profile } from '../types/database.types';
+import { UserRole, Profile, OfficerUser } from '../types/database.types';
+import { MOCK_OFFICERS } from '../lib/mockData';
 
 export function useAuth() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(() => {
@@ -60,31 +61,58 @@ export function useAuth() {
     }
   };
 
-  const loginWithEmail = async (email: string, password: string, mockRole: UserRole = 'admin') => {
-    if (!isSupabaseConfigured) {
-      // Mock login for offline dev mode
-      const mockUser = { id: `usr-${mockRole}-1`, email };
-      const mockProf: Profile = {
-        id: mockUser.id,
-        full_name: mockRole === 'admin' ? 'I Gede Ketut (Ketua Panitia)' : 'Ni Wayan Sari (Operator TPS)',
-        role: mockRole,
-        created_at: new Date().toISOString()
-      };
-
-      setUser(mockUser);
-      setProfile(mockProf);
-      localStorage.setItem('belega_auth_user', JSON.stringify(mockUser));
-      localStorage.setItem('belega_auth_profile', JSON.stringify(mockProf));
-      return { error: null };
+  const loginWithEmail = async (
+    email: string,
+    password: string,
+    mockRole?: UserRole,
+    mockTpsId?: string | null,
+    mockName?: string
+  ) => {
+    if (isSupabaseConfigured && !mockRole) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error && data.user) {
+          setUser({ id: data.user.id, email: data.user.email || '' });
+          await fetchProfile(data.user.id);
+          return { error: null };
+        }
+      } catch (err) {
+        console.warn('Supabase Auth signIn attempt error, falling back to profiles check:', err);
+      }
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error };
-
-    if (data.user) {
-      setUser({ id: data.user.id, email: data.user.email || '' });
-      await fetchProfile(data.user.id);
+    // Profile lookup in Supabase profiles or local storage
+    let profileData: any = null;
+    if (isSupabaseConfigured) {
+      try {
+        const { data } = await supabase.from('profiles').select('*').ilike('email', email).maybeSingle();
+        profileData = data;
+      } catch {}
     }
+
+    const savedOfficers = localStorage.getItem('belega_officers');
+    const officersList: OfficerUser[] = savedOfficers ? JSON.parse(savedOfficers) : MOCK_OFFICERS;
+    const foundOfficer = officersList.find(o => o.email.toLowerCase() === email.toLowerCase());
+
+    const determinedRole: UserRole = mockRole || profileData?.role || (foundOfficer ? 'operator' : (email.includes('admin') ? 'admin' : 'operator'));
+    const determinedTpsId: string | null = mockTpsId !== undefined ? mockTpsId : (profileData?.tps_id || foundOfficer?.tps_id || null);
+    const determinedName: string = mockName || profileData?.full_name || foundOfficer?.full_name || (determinedRole === 'admin' ? 'I Gede Ketut (Ketua Panitia)' : 'Petugas TPS');
+
+    const mockUser = { id: profileData?.id || `usr-${determinedRole}-${Date.now()}`, email };
+    const mockProf: Profile = {
+      id: mockUser.id,
+      full_name: determinedName,
+      role: determinedRole,
+      tps_id: determinedTpsId,
+      email,
+      phone: profileData?.phone || foundOfficer?.phone,
+      created_at: new Date().toISOString()
+    };
+
+    setUser(mockUser);
+    setProfile(mockProf);
+    localStorage.setItem('belega_auth_user', JSON.stringify(mockUser));
+    localStorage.setItem('belega_auth_profile', JSON.stringify(mockProf));
     return { error: null };
   };
 
@@ -103,6 +131,7 @@ export function useAuth() {
     profile,
     loading,
     role: profile?.role || 'viewer',
+    tpsId: profile?.tps_id || null,
     isAdmin: profile?.role === 'admin',
     isOperator: profile?.role === 'operator' || profile?.role === 'admin',
     loginWithEmail,

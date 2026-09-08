@@ -51,9 +51,6 @@ const AnimatedCandidateCard: React.FC<{
           >
             PASLON 0{candidate.number}
           </span>
-          <h2 className="font-headline-sm text-base md:text-xl font-bold truncate text-white">
-            {candidate.name}
-          </h2>
         </div>
 
         {/* TV Status Badge */}
@@ -72,39 +69,45 @@ const AnimatedCandidateCard: React.FC<{
       </div>
 
       {/* Content Body: Photo + Metric Data */}
-      <div className="flex items-center gap-space-md">
+      <div className="flex items-start gap-space-md">
         
-        {/* Photo with TV Studio Ring */}
-        <div className="relative shrink-0">
-          <div
-            className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 shadow-xl ${
-              isLeading ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-slate-700'
-            }`}
-          >
-            <img
-              src={candidate.photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300'}
-              alt={candidate.name}
-              className="w-full h-full object-cover"
-            />
+        {/* Photo Column with Name Underneath */}
+        <div className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center">
+          <div className="relative">
+            <div
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 shadow-xl ${
+                isLeading ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-slate-700'
+              }`}
+            >
+              <img
+                src={candidate.photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300'}
+                alt={candidate.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {/* Number Overlay Pill */}
+            <div
+              className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center font-black text-xs text-white shadow-lg border-2 border-slate-900 ${
+                isPaslon1 ? 'bg-rose-600' : 'bg-amber-600'
+              }`}
+            >
+              {candidate.number}
+            </div>
           </div>
-          {/* Number Overlay Pill */}
-          <div
-            className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center font-black text-xs text-white shadow-lg border-2 border-slate-900 ${
-              isPaslon1 ? 'bg-rose-600' : 'bg-amber-600'
-            }`}
-          >
-            {candidate.number}
-          </div>
+
+          {/* Candidate Name below Photo */}
+          <h3 className="font-bold text-xs sm:text-sm text-white text-center leading-snug mt-2 w-full break-words">
+            {candidate.name}
+          </h3>
+          {candidate.vice_name && (
+            <p className="text-[11px] text-slate-300 text-center leading-tight mt-0.5 w-full break-words">
+              Wakil: <span className="font-semibold text-slate-200">{candidate.vice_name}</span>
+            </p>
+          )}
         </div>
 
         {/* Vote Metrics */}
-        <div className="flex-1 min-w-0">
-          {candidate.vice_name && (
-            <p className="text-xs md:text-sm font-medium mb-1 truncate text-slate-300">
-              Wakil: <span className="font-semibold text-white">{candidate.vice_name}</span>
-            </p>
-          )}
-
+        <div className="flex-1 min-w-0 pt-1">
           {/* Main Percentage & Vote Count */}
           <div className="flex items-baseline gap-2.5 flex-wrap my-0.5">
             <span
@@ -135,7 +138,7 @@ const AnimatedCandidateCard: React.FC<{
           </div>
 
           {/* Banjar Leading Count & Margin Delta */}
-          <div className="flex justify-between items-center mt-2 text-xs font-semibold text-slate-300">
+          <div className="flex justify-between items-center mt-2.5 text-xs font-semibold text-slate-300 flex-wrap gap-1">
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-xs text-amber-400">location_on</span>
               Unggul di {candidate.banjar_leading_count} Banjar

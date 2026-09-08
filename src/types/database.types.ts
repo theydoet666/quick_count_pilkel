@@ -6,6 +6,20 @@ export interface Profile {
   id: string;
   full_name: string;
   role: UserRole;
+  tps_id?: string | null;
+  email?: string;
+  phone?: string;
+  created_at: string;
+}
+
+export interface OfficerUser {
+  id: string;
+  full_name: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  tps_id: string;
+  role: 'operator';
   created_at: string;
 }
 
@@ -14,6 +28,8 @@ export interface ElectionSettings {
   subtitle: string;
   organizer: string;
   logo_url: string | null;
+  flash_count_text?: string;
+  ticker_speed?: number;
 }
 
 export interface Election {

@@ -47,8 +47,14 @@ export function App() {
     }
   };
 
-  const handleLoginSubmit = async (email: string, pass: string, mockRole?: 'admin' | 'operator') => {
-    const res = await loginWithEmail(email, pass, mockRole);
+  const handleLoginSubmit = async (
+    email: string,
+    pass: string,
+    mockRole?: 'admin' | 'operator',
+    mockTpsId?: string | null,
+    mockName?: string
+  ) => {
+    const res = await loginWithEmail(email, pass, mockRole, mockTpsId, mockName);
     if (!res.error) {
       navigateTo('admin-dashboard');
     }
@@ -89,6 +95,7 @@ export function App() {
       <AdminDashboard
         userEmail={user.email}
         role={role}
+        tpsId={profile?.tps_id || null}
         fullName={profile?.full_name || 'Petugas Panitia'}
         onLogout={handleLogout}
         onViewPublic={() => navigateTo('public')}

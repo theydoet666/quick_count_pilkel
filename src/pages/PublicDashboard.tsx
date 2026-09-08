@@ -41,16 +41,16 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
       />
 
       {/* Main Broadcast Screen Content */}
-      <main className="w-full pt-24 pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop z-10">
+      <main className="w-full pt-20 sm:pt-24 pb-14 sm:pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-3 sm:px-margin-mobile md:px-margin-desktop z-10">
         
         {/* TV Broadcast Banner Header */}
-        <div className="mb-space-md flex items-center justify-between flex-wrap gap-2 bg-[#111827]/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/60 shadow-xl">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-3 w-3 relative">
+        <div className="mb-space-sm sm:mb-space-md flex items-center justify-between flex-wrap gap-2 bg-[#111827]/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-slate-700/60 shadow-xl">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <span className="flex h-2.5 w-2.5 sm:h-3 sm:w-3 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500"></span>
             </span>
-            <span className="font-black text-xs md:text-sm uppercase tracking-wider text-white">
+            <span className="font-black text-[11px] sm:text-xs md:text-sm uppercase tracking-wider text-white">
               PUSAT TABULASI & HITUNG CEPAT DIGITAL {electionSettings.title}
             </span>
           </div>
@@ -92,6 +92,7 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
             <TPSRecapTable
               tpsList={tpsList}
               candidates={summary.candidates}
+              organizer={electionSettings.organizer}
               onViewEvidence={(tps) => setSelectedEvidenceTps(tps)}
             />
           </div>
@@ -110,6 +111,8 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
         lastUpdated={lastUpdated}
         tpsList={tpsList}
         organizer={electionSettings.organizer}
+        flashCountText={electionSettings.flash_count_text}
+        tickerSpeed={electionSettings.ticker_speed}
       />
     </div>
   );

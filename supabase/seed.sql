@@ -38,62 +38,45 @@ BEGIN
         'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=300'
     ) ON CONFLICT (id) DO NOTHING;
 
-    -- Insert Polling Stations (6 TPS)
+    -- Insert Polling Stations (6 TPS) in clean pending state
     INSERT INTO public.polling_stations (id, election_id, code, banjar_name, registered_voters, status)
     VALUES 
-    (v_tps1_id, v_election_id, 'TPS 01', 'Balai Banjar Belega Kangin', 640, 'verified'),
-    (v_tps2_id, v_election_id, 'TPS 02', 'Balai Banjar Belega Kauh', 610, 'verified'),
-    (v_tps3_id, v_election_id, 'TPS 03', 'Balai Banjar Belega Tengah', 680, 'verified'),
-    (v_tps4_id, v_election_id, 'TPS 04', 'Balai Banjar Kebon', 590, 'verified'),
-    (v_tps5_id, v_election_id, 'TPS 05', 'Balai Banjar Jasri', 650, 'verified'),
-    (v_tps6_id, v_election_id, 'TPS 06', 'Balai Banjar Selat', 658, 'verified')
+    (v_tps1_id, v_election_id, 'TPS 01', 'Balai Banjar Belega Kangin', 640, 'pending'),
+    (v_tps2_id, v_election_id, 'TPS 02', 'Balai Banjar Belega Kauh', 610, 'pending'),
+    (v_tps3_id, v_election_id, 'TPS 03', 'Balai Banjar Belega Tengah', 680, 'pending'),
+    (v_tps4_id, v_election_id, 'TPS 04', 'Balai Banjar Kebon', 590, 'pending'),
+    (v_tps5_id, v_election_id, 'TPS 05', 'Balai Banjar Jasri', 650, 'pending'),
+    (v_tps6_id, v_election_id, 'TPS 06', 'Balai Banjar Selat', 658, 'pending')
     ON CONFLICT (id) DO NOTHING;
 
-    -- Insert Sample Vote Results per TPS
-    -- TPS 01 (580 Suara Sah: 348 vs 232)
+    -- Initial 0 vote counts per TPS
     INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps1_id, v_cand1_id, 348),
-    (v_tps1_id, v_cand2_id, 232)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
+    (v_tps1_id, v_cand1_id, 0), (v_tps1_id, v_cand2_id, 0),
+    (v_tps2_id, v_cand1_id, 0), (v_tps2_id, v_cand2_id, 0),
+    (v_tps3_id, v_cand1_id, 0), (v_tps3_id, v_cand2_id, 0),
+    (v_tps4_id, v_cand1_id, 0), (v_tps4_id, v_cand2_id, 0),
+    (v_tps5_id, v_cand1_id, 0), (v_tps5_id, v_cand2_id, 0),
+    (v_tps6_id, v_cand1_id, 0), (v_tps6_id, v_cand2_id, 0)
+    ON CONFLICT (polling_station_id, candidate_id) DO NOTHING;
 
-    -- TPS 02 (545 Suara Sah: 310 vs 235)
-    INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps2_id, v_cand1_id, 310),
-    (v_tps2_id, v_cand2_id, 235)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
-
-    -- TPS 03 (612 Suara Sah: 355 vs 257)
-    INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps3_id, v_cand1_id, 355),
-    (v_tps3_id, v_cand2_id, 257)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
-
-    -- TPS 04 (518 Suara Sah: 220 vs 298)
-    INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps4_id, v_cand1_id, 220),
-    (v_tps4_id, v_cand2_id, 298)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
-
-    -- TPS 05 (576 Suara Sah: 334 vs 242)
-    INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps5_id, v_cand1_id, 334),
-    (v_tps5_id, v_cand2_id, 242)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
-
-    -- TPS 06 (530 Suara Sah: 275 vs 255)
-    INSERT INTO public.vote_results (polling_station_id, candidate_id, votes) VALUES
-    (v_tps6_id, v_cand1_id, 275),
-    (v_tps6_id, v_cand2_id, 255)
-    ON CONFLICT (polling_station_id, candidate_id) DO UPDATE SET votes = EXCLUDED.votes;
-
-    -- Insert Invalid Votes per TPS
+    -- Initial 0 invalid votes
     INSERT INTO public.invalid_votes (polling_station_id, count) VALUES
-    (v_tps1_id, 12),
-    (v_tps2_id, 10),
-    (v_tps3_id, 15),
-    (v_tps4_id, 8),
-    (v_tps5_id, 9),
-    (v_tps6_id, 8)
-    ON CONFLICT (polling_station_id) DO UPDATE SET count = EXCLUDED.count;
+    (v_tps1_id, 0),
+    (v_tps2_id, 0),
+    (v_tps3_id, 0),
+    (v_tps4_id, 0),
+    (v_tps5_id, 0),
+    (v_tps6_id, 0)
+    ON CONFLICT (polling_station_id) DO NOTHING;
+
+    -- Initial Officers
+    INSERT INTO public.profiles (full_name, email, phone, role, tps_id) VALUES
+    ('Ni Wayan Sari (Petugas TPS 01)', 'tps01@pilkel.belega.id', '081234567801', 'operator', v_tps1_id),
+    ('I Made Sukerta (Petugas TPS 02)', 'tps02@pilkel.belega.id', '081234567802', 'operator', v_tps2_id),
+    ('I Ketut Suweta (Petugas TPS 03)', 'tps03@pilkel.belega.id', '081234567803', 'operator', v_tps3_id),
+    ('Ni Nyoman Rai (Petugas TPS 04)', 'tps04@pilkel.belega.id', '081234567804', 'operator', v_tps4_id),
+    ('I Wayan Budiana (Petugas TPS 05)', 'tps05@pilkel.belega.id', '081234567805', 'operator', v_tps5_id),
+    ('Ni Ketut Yanti (Petugas TPS 06)', 'tps06@pilkel.belega.id', '081234567806', 'operator', v_tps6_id)
+    ON CONFLICT (email) DO NOTHING;
 
 END $$;

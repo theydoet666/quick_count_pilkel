@@ -295,6 +295,46 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
     RETURN QUERY
+    WITH tps_valid_totals AS (
+        SELECT 
+            vr.polling_station_id,
+            COALESCE(SUM(vr.votes), 0)::INT as tps_valid_sum
+        FROM public.vote_results vr
+        JOIN public.polling_stations ps ON ps.id = vr.polling_station_id
+        WHERE ps.election_id = p_election_id
+        GROUP BY vr.polling_station_id
+    ),
+    tps_candidate_votes AS (
+        SELECT 
+            ps.id as ps_id,
+            c.number,
+            c.id as candidate_id,
+            COALESCE(vr.votes, 0)::INT as votes,
+            CASE 
+                WHEN COALESCE(tot.tps_valid_sum, 0) > 0 
+                THEN ROUND((COALESCE(vr.votes, 0)::NUMERIC / tot.tps_valid_sum::NUMERIC) * 100, 1)
+                ELSE 0 
+            END as percentage
+        FROM public.polling_stations ps
+        CROSS JOIN public.candidates c
+        LEFT JOIN public.vote_results vr ON vr.polling_station_id = ps.id AND vr.candidate_id = c.id
+        LEFT JOIN tps_valid_totals tot ON tot.polling_station_id = ps.id
+        WHERE ps.election_id = p_election_id AND c.election_id = p_election_id
+    ),
+    tps_cand_json AS (
+        SELECT 
+            tcv.ps_id,
+            jsonb_object_agg(
+                tcv.number::TEXT,
+                jsonb_build_object(
+                    'candidate_id', tcv.candidate_id,
+                    'votes', tcv.votes,
+                    'percentage', tcv.percentage
+                )
+            ) as cand_json
+        FROM tps_candidate_votes tcv
+        GROUP BY tcv.ps_id
+    )
     SELECT 
         ps.id as polling_station_id,
         ps.code,
@@ -302,22 +342,9 @@ BEGIN
         ps.registered_voters,
         ps.status,
         ps.evidence_photo_url,
-        COALESCE(SUM(vr.votes), 0)::INT as total_valid_votes,
+        COALESCE(tot.tps_valid_sum, 0)::INT as total_valid_votes,
         COALESCE(iv.count, 0)::INT as invalid_votes_count,
-        COALESCE(
-            jsonb_object_agg(
-                c.number::TEXT, 
-                jsonb_build_object(
-                    'candidate_id', c.id,
-                    'votes', COALESCE(vr.votes, 0),
-                    'percentage', CASE WHEN SUM(vr.votes) OVER (PARTITION BY ps.id) > 0 
-                                       THEN ROUND((COALESCE(vr.votes, 0)::NUMERIC / (SUM(vr.votes) OVER (PARTITION BY ps.id))::NUMERIC) * 100, 1) 
-                                       ELSE 0 END
-                )
-            ), 
-            '{}'::jsonb
-        ) as candidate_votes,
-        -- Determine leading candidate number
+        COALESCE(tcj.cand_json, '{}'::jsonb) as candidate_votes,
         (
             SELECT c_sub.number 
             FROM public.vote_results vr_sub 
@@ -325,7 +352,6 @@ BEGIN
             WHERE vr_sub.polling_station_id = ps.id 
             ORDER BY vr_sub.votes DESC LIMIT 1
         ) as leading_candidate_number,
-        -- Determine margin between 1st and 2nd
         COALESCE(
             (
                 SELECT ABS(vr1.votes - COALESCE(vr2.votes, 0))
@@ -341,11 +367,10 @@ BEGIN
             0
         )::INT as vote_margin
     FROM public.polling_stations ps
-    LEFT JOIN public.vote_results vr ON vr.polling_station_id = ps.id
-    LEFT JOIN public.candidates c ON c.id = vr.candidate_id
+    LEFT JOIN tps_valid_totals tot ON tot.polling_station_id = ps.id
+    LEFT JOIN tps_cand_json tcj ON tcj.ps_id = ps.id
     LEFT JOIN public.invalid_votes iv ON iv.polling_station_id = ps.id
     WHERE ps.election_id = p_election_id
-    GROUP BY ps.id, ps.code, ps.banjar_name, ps.registered_voters, ps.status, ps.evidence_photo_url, iv.count
     ORDER BY ps.code ASC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;

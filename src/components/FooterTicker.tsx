@@ -5,12 +5,16 @@ interface FooterTickerProps {
   lastUpdated: string;
   tpsList?: TPSRecapItem[];
   organizer?: string;
+  flashCountText?: string;
+  tickerSpeed?: number;
 }
 
 export const FooterTicker: React.FC<FooterTickerProps> = ({
   lastUpdated,
   tpsList = [],
-  organizer = 'Panwaslukel Desa Belega'
+  organizer = 'Panwaslukel Desa Belega',
+  flashCountText = 'FLASH COUNT',
+  tickerSpeed = 30
 }) => {
   // Generate ticker items from TPS list
   const tickerItems = tpsList.length > 0
@@ -37,7 +41,7 @@ export const FooterTicker: React.FC<FooterTickerProps> = ({
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-white animate-ping" />
             <span className="font-black text-xs md:text-sm tracking-wider uppercase text-white drop-shadow">
-              FLASH COUNT
+              {flashCountText || 'FLASH COUNT'}
             </span>
           </div>
         </div>
@@ -50,7 +54,10 @@ export const FooterTicker: React.FC<FooterTickerProps> = ({
 
         {/* Scrolling News Ticker Marquee */}
         <div className="flex-1 overflow-hidden relative flex items-center mask-gradient h-full">
-          <div className="animate-marquee whitespace-nowrap flex items-center gap-8 text-xs md:text-sm font-medium text-neutral-200">
+          <div
+            className="animate-marquee whitespace-nowrap flex items-center gap-8 text-xs md:text-sm font-medium text-neutral-200"
+            style={{ animationDuration: `${tickerSpeed || 30}s` }}
+          >
             {duplicatedItems.map((text, idx) => (
               <span key={idx} className="flex items-center gap-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />

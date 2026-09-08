@@ -4,25 +4,26 @@ import { TPSRecapItem, CandidateSummary } from '../types/database.types';
 interface TPSRecapTableProps {
   tpsList: TPSRecapItem[];
   candidates: CandidateSummary[];
-  onViewEvidence: (tps: TPSRecapItem) => void;
+  organizer?: string;
+  onViewEvidence?: (tps: TPSRecapItem) => void;
 }
 
 // Shared colgroup to ensure 100% pixel-perfect alignment across header, body, and footer
 const TableColGroup: React.FC = () => (
   <colgroup>
-    <col className="w-[26%] md:w-[23%]" />
-    <col className="w-[14%] md:w-[12%]" />
-    <col className="w-[18%] md:w-[16%]" />
-    <col className="w-[18%] md:w-[16%]" />
+    <col className="w-[30%] md:w-[26%]" />
+    <col className="w-[16%] md:w-[13%]" />
+    <col className="w-[20%] md:w-[17%]" />
+    <col className="w-[20%] md:w-[17%]" />
     <col className="hidden md:table-column md:w-[14%]" />
-    <col className="w-[14%] md:w-[11%]" />
-    <col className="w-[10%] md:w-[8%]" />
+    <col className="w-[14%] md:w-[13%]" />
   </colgroup>
 );
 
 export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
   tpsList,
   candidates,
+  organizer = 'Panwaslukel Desa Belega',
   onViewEvidence
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,19 +125,6 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
             <span className="text-[10px] text-slate-500 italic">Belum</span>
           )}
         </td>
-
-        {/* Evidence Photo Button */}
-        <td className="py-2.5 px-1.5 text-center">
-          <button
-            onClick={() => onViewEvidence(tps)}
-            className="p-1 rounded-md text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 transition-all active:scale-95"
-            title="Lihat Foto Formulir C-Hasil"
-          >
-            <span className="material-symbols-outlined text-base md:text-lg align-middle">
-              photo_camera
-            </span>
-          </button>
-        </td>
       </tr>
     );
   };
@@ -164,7 +152,7 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
               )}
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
-              Perolehan suara C-Hasil per banjar (bergulir otomatis)
+              Perolehan suara per banjar (bergulir otomatis)
             </p>
           </div>
         </div>
@@ -232,7 +220,6 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
               </th>
               <th className="py-2.5 px-2 text-center font-bold hidden md:table-cell truncate">Visual Sebaran</th>
               <th className="py-2.5 px-2 text-center font-bold truncate">Keunggulan</th>
-              <th className="py-2.5 px-1.5 text-center font-bold truncate">C-Hasil</th>
             </tr>
           </thead>
         </table>
@@ -278,7 +265,7 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
                   <div className="h-full bg-amber-500" style={{ width: `${grandC2Pct}%` }} />
                 </div>
               </td>
-              <td className="py-2.5 px-2 text-center" colSpan={2}>
+              <td className="py-2.5 px-2 text-center">
                 <span className="font-black text-xs md:text-sm text-amber-300 tabular-nums block truncate">
                   {netMargin >= 0 ? `01 (+${netMargin.toLocaleString('id-ID')})` : `02 (+${Math.abs(netMargin).toLocaleString('id-ID')})`}
                 </span>
@@ -295,7 +282,7 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
           Data terverifikasi C-Hasil TPS
         </span>
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-          Panwaslukel Desa Belega
+          {organizer}
         </span>
       </div>
     </div>

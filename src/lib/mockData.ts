@@ -1,4 +1,4 @@
-import { ElectionSummary, TPSRecapItem, Candidate, CandidateSummary, ElectionSettings, AuditLog } from '../types/database.types';
+import { ElectionSummary, TPSRecapItem, Candidate, CandidateSummary, ElectionSettings, AuditLog, OfficerUser } from '../types/database.types';
 
 export const MOCK_ELECTION = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -37,96 +37,96 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 01',
     banjar_name: 'Balai Banjar Belega Kangin',
     registered_voters: 640,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 580,
-    invalid_votes_count: 12,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 348, percentage: 60.0 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 232, percentage: 40.0 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 1,
-    vote_margin: 116
+    leading_candidate_number: null,
+    vote_margin: 0
   },
   {
     polling_station_id: 'a2222222-2222-2222-2222-222222222222',
     code: 'TPS 02',
     banjar_name: 'Balai Banjar Belega Kauh',
     registered_voters: 610,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 545,
-    invalid_votes_count: 10,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 310, percentage: 56.9 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 235, percentage: 43.1 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 1,
-    vote_margin: 75
+    leading_candidate_number: null,
+    vote_margin: 0
   },
   {
     polling_station_id: 'a3333333-3333-3333-3333-333333333333',
     code: 'TPS 03',
     banjar_name: 'Balai Banjar Belega Tengah',
     registered_voters: 680,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 612,
-    invalid_votes_count: 15,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 355, percentage: 58.0 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 257, percentage: 42.0 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 1,
-    vote_margin: 98
+    leading_candidate_number: null,
+    vote_margin: 0
   },
   {
     polling_station_id: 'a4444444-4444-4444-4444-444444444444',
     code: 'TPS 04',
     banjar_name: 'Balai Banjar Kebon',
     registered_voters: 590,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 518,
-    invalid_votes_count: 8,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 220, percentage: 42.5 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 298, percentage: 57.5 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 2,
-    vote_margin: 78
+    leading_candidate_number: null,
+    vote_margin: 0
   },
   {
     polling_station_id: 'a5555555-5555-5555-5555-555555555555',
     code: 'TPS 05',
     banjar_name: 'Balai Banjar Jasri',
     registered_voters: 650,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 576,
-    invalid_votes_count: 9,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 334, percentage: 58.0 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 242, percentage: 42.0 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 1,
-    vote_margin: 92
+    leading_candidate_number: null,
+    vote_margin: 0
   },
   {
     polling_station_id: 'a6666666-6666-6666-6666-666666666666',
     code: 'TPS 06',
     banjar_name: 'Balai Banjar Selat',
     registered_voters: 658,
-    status: 'verified',
-    evidence_photo_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800',
-    total_valid_votes: 530,
-    invalid_votes_count: 8,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
     candidate_votes: {
-      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 275, percentage: 51.9 },
-      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 255, percentage: 48.1 }
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
     },
-    leading_candidate_number: 1,
-    vote_margin: 20
+    leading_candidate_number: null,
+    vote_margin: 0
   }
 ];
 
@@ -134,7 +134,9 @@ export const DEFAULT_ELECTION_SETTINGS: ElectionSettings = {
   title: 'PILKEL DESA BELEGA 2026',
   subtitle: 'Kecamatan Blahbatuh • Gianyar, Bali',
   organizer: 'Panwaslukel Desa Belega',
-  logo_url: null
+  logo_url: null,
+  flash_count_text: 'FLASH COUNT',
+  ticker_speed: 30
 };
 
 export const calculateSummary = (
@@ -201,6 +203,69 @@ export const calculateSummary = (
     candidates: candidateSummaries
   };
 };
+
+export const MOCK_OFFICERS: OfficerUser[] = [
+  {
+    id: 'off-1',
+    full_name: 'Ni Wayan Sari (Petugas TPS 01)',
+    email: 'tps01@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567801',
+    tps_id: 'a1111111-1111-1111-1111-111111111111',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-2',
+    full_name: 'I Made Sukerta (Petugas TPS 02)',
+    email: 'tps02@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567802',
+    tps_id: 'a2222222-2222-2222-2222-222222222222',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-3',
+    full_name: 'I Ketut Suweta (Petugas TPS 03)',
+    email: 'tps03@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567803',
+    tps_id: 'a3333333-3333-3333-3333-333333333333',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-4',
+    full_name: 'Ni Nyoman Rai (Petugas TPS 04)',
+    email: 'tps04@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567804',
+    tps_id: 'a4444444-4444-4444-4444-444444444444',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-5',
+    full_name: 'I Wayan Budiana (Petugas TPS 05)',
+    email: 'tps05@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567805',
+    tps_id: 'a5555555-5555-5555-5555-555555555555',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-6',
+    full_name: 'Ni Ketut Yanti (Petugas TPS 06)',
+    email: 'tps06@pilkel.belega.id',
+    password: 'password123',
+    phone: '081234567806',
+    tps_id: 'a6666666-6666-6666-6666-666666666666',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  }
+];
 
 export const MOCK_AUDIT_LOGS: AuditLog[] = [
   {
