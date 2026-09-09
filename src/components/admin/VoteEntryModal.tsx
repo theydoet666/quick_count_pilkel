@@ -23,26 +23,39 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
   onClose,
   onSaveVotes
 }) => {
-  if (!tps) return null;
-
-  const [votes1, setVotes1] = useState<number>(tps.candidate_votes['1']?.votes || 0);
-  const [votes2, setVotes2] = useState<number>(tps.candidate_votes['2']?.votes || 0);
-  const [invalidVotes, setInvalidVotes] = useState<number>(tps.invalid_votes_count || 0);
-  const [photoUrl, setPhotoUrl] = useState<string>(tps.evidence_photo_url || '');
-  const [status, setStatus] = useState<TPSStatus>(tps.status);
+  const [votes1, setVotes1] = useState<number>(tps?.candidate_votes['1']?.votes || 0);
+  const [votes2, setVotes2] = useState<number>(tps?.candidate_votes['2']?.votes || 0);
+  const [invalidVotes, setInvalidVotes] = useState<number>(tps?.invalid_votes_count || 0);
+  const [photoUrl, setPhotoUrl] = useState<string>(tps?.evidence_photo_url || '');
+  const [status, setStatus] = useState<TPSStatus>(tps?.status || 'pending');
   const [errorMsg, setErrorMsg] = useState<string>('');
 
   useEffect(() => {
-    setVotes1(tps.candidate_votes['1']?.votes || 0);
-    setVotes2(tps.candidate_votes['2']?.votes || 0);
-    setInvalidVotes(tps.invalid_votes_count || 0);
-    setPhotoUrl(tps.evidence_photo_url || '');
-    setStatus(tps.status);
-    setErrorMsg('');
+    if (tps) {
+      setVotes1(tps.candidate_votes['1']?.votes || 0);
+      setVotes2(tps.candidate_votes['2']?.votes || 0);
+      setInvalidVotes(tps.invalid_votes_count || 0);
+      setPhotoUrl(tps.evidence_photo_url || '');
+      setStatus(tps.status);
+      setErrorMsg('');
+    }
   }, [tps]);
+
+  if (!tps) return null;
 
   const totalCalculated = votes1 + votes2 + invalidVotes;
   const isExceeded = totalCalculated > tps.registered_voters;
+
+  // Dynamic candidate data from database/props
+  const cand1 = candidates?.find(c => c.number === 1) || candidates?.[0];
+  const cand2 = candidates?.find(c => c.number === 2) || candidates?.[1];
+
+  const cand1Name = cand1
+    ? `${cand1.name}${cand1.vice_name ? ` & ${cand1.vice_name}` : ''}`
+    : 'PASLON 01';
+  const cand2Name = cand2
+    ? `${cand2.name}${cand2.vice_name ? ` & ${cand2.vice_name}` : ''}`
+    : 'PASLON 02';
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -116,9 +129,18 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
           {/* Paslon 01 */}
           <div className="p-space-sm rounded bg-surface-container-low border border-secondary-fixed/50">
             <div className="flex items-center justify-between mb-space-xs">
-              <span className="font-label-md text-label-md font-bold text-secondary">
-                PASLON 01 — I Wayan Suardika, S.E.
-              </span>
+              <div className="flex items-center gap-2">
+                {cand1?.photo_url && (
+                  <img
+                    src={cand1.photo_url}
+                    alt={cand1Name}
+                    className="w-6 h-6 rounded-full object-cover border border-secondary shrink-0"
+                  />
+                )}
+                <span className="font-label-md text-label-md font-bold text-secondary">
+                  PASLON 0{cand1?.number || 1} — {cand1Name}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-space-sm">
               <input
@@ -136,9 +158,18 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
           {/* Paslon 02 */}
           <div className="p-space-sm rounded bg-surface-container-low border border-tertiary-fixed/50">
             <div className="flex items-center justify-between mb-space-xs">
-              <span className="font-label-md text-label-md font-bold text-tertiary-fixed-dim">
-                PASLON 02 — Dr. I Nyoman Putra Astawa, M.Si.
-              </span>
+              <div className="flex items-center gap-2">
+                {cand2?.photo_url && (
+                  <img
+                    src={cand2.photo_url}
+                    alt={cand2Name}
+                    className="w-6 h-6 rounded-full object-cover border border-tertiary-fixed-dim shrink-0"
+                  />
+                )}
+                <span className="font-label-md text-label-md font-bold text-tertiary-fixed-dim">
+                  PASLON 0{cand2?.number || 2} — {cand2Name}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-space-sm">
               <input

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TPSRecapItem, CandidateSummary } from '../types/database.types';
 
 interface TPSRecapTableProps {
@@ -28,6 +28,27 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAutoScrollActive, setIsAutoScrollActive] = useState(true);
+
+  // Live row update flash tracking
+  const prevVotesMapRef = useRef<Record<string, number>>({});
+  const [updatedTpsIds, setUpdatedTpsIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const updated = new Set<string>();
+    tpsList.forEach(t => {
+      const prev = prevVotesMapRef.current[t.polling_station_id];
+      if (prev !== undefined && prev !== t.total_valid_votes) {
+        updated.add(t.polling_station_id);
+      }
+      prevVotesMapRef.current[t.polling_station_id] = t.total_valid_votes;
+    });
+
+    if (updated.size > 0) {
+      setUpdatedTpsIds(updated);
+      const timer = setTimeout(() => setUpdatedTpsIds(new Set()), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [tpsList]);
 
   const c1Name = candidates.find(c => c.number === 1)?.name.split(',')[0] || 'Paslon 01';
   const c2Name = candidates.find(c => c.number === 2)?.name.split(',')[0] || 'Paslon 02';
@@ -62,17 +83,25 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
 
     const isC1Leading = tps.leading_candidate_number === 1;
     const isC2Leading = tps.leading_candidate_number === 2;
+    const isRowUpdated = updatedTpsIds.has(tps.polling_station_id);
 
     return (
       <tr
         key={`${tps.polling_station_id}-${keyIndex}`}
-        className="border-b border-slate-800/60 hover:bg-slate-800/50 transition-colors group"
+        className={`border-b border-slate-800/60 hover:bg-slate-800/50 transition-all duration-500 group ${
+          isRowUpdated ? 'animate-row-flash bg-emerald-500/20' : ''
+        }`}
       >
         {/* TPS Code & Banjar */}
         <td className="py-2.5 px-3">
-          <span className="font-bold text-white text-xs md:text-sm block leading-tight truncate">
-            {tps.code}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-white text-xs md:text-sm block leading-tight truncate">
+              {tps.code}
+            </span>
+            {isRowUpdated && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block shrink-0" />
+            )}
+          </div>
           <span className="text-[11px] text-slate-400 font-medium truncate block">
             {tps.banjar_name}
           </span>

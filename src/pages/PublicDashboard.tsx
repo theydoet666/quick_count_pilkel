@@ -101,10 +101,12 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
       </main>
 
       {/* Evidence Photo Modal */}
-      <EvidenceModal
-        tps={selectedEvidenceTps}
-        onClose={() => setSelectedEvidenceTps(null)}
-      />
+      {selectedEvidenceTps && (
+        <EvidenceModal
+          tps={selectedEvidenceTps}
+          onClose={() => setSelectedEvidenceTps(null)}
+        />
+      )}
 
       {/* Bottom Fixed Realtime TV Marquee Ticker */}
       <FooterTicker

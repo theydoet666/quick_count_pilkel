@@ -124,4 +124,58 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
 }
 
+/* Live update animations */
+@keyframes live-number-pulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.08);
+    filter: brightness(1.5);
+    text-shadow: 0 0 25px rgba(251, 191, 36, 0.9), 0 0 50px rgba(245, 158, 11, 0.7);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes live-card-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+  }
+  25% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.25);
+    border-color: rgba(251, 191, 36, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes row-update-flash {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-live-flash {
+  animation: live-number-pulse 1.2s ease-out;
+}
+
+.animate-card-flash {
+  animation: live-card-pulse 1.6s ease-out;
+}
+
+.animate-row-flash {
+  animation: row-update-flash 2s ease-out;
+}
+
 

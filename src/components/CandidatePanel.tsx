@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CandidateSummary } from '../types/database.types';
 import { useAnimatedCounter } from '../hooks/useAnimatedCounter';
 
@@ -14,17 +14,32 @@ const AnimatedCandidateCard: React.FC<{
   margin: number;
   totalValidVotes: number;
 }> = ({ candidate, isLeading, margin, totalValidVotes }) => {
-  const animatedPercentage = useAnimatedCounter(candidate.percentage, 1200, 1);
-  const animatedVotes = useAnimatedCounter(candidate.total_votes, 1200, 0);
-  const animatedMargin = useAnimatedCounter(margin, 1200, 0);
+  const animatedPercentage = useAnimatedCounter(candidate.percentage, 1000, 1);
+  const animatedVotes = useAnimatedCounter(candidate.total_votes, 1000, 0);
+  const animatedMargin = useAnimatedCounter(margin, 1000, 0);
+
+  // Live update flash detector
+  const prevVotesRef = useRef(candidate.total_votes);
+  const [isFlashing, setIsFlashing] = useState(false);
+
+  useEffect(() => {
+    if (prevVotesRef.current !== candidate.total_votes) {
+      prevVotesRef.current = candidate.total_votes;
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [candidate.total_votes, candidate.percentage]);
 
   const isPaslon1 = candidate.number === 1;
   const themeColor = candidate.color_hex || (isPaslon1 ? '#f43f5e' : '#f59e0b');
 
   return (
     <div
-      className={`relative rounded-2xl p-space-md md:p-space-lg overflow-hidden border transition-all duration-300 shadow-xl ${
-        isLeading
+      className={`relative rounded-2xl p-space-md md:p-space-lg overflow-hidden border transition-all duration-500 shadow-xl ${
+        isFlashing
+          ? 'animate-card-flash ring-2 ring-amber-400 bg-slate-900'
+          : isLeading
           ? 'bg-gradient-to-br from-[#122216] via-[#0f1b13] to-[#0a140e] text-white border-amber-400/60 leader-glow'
           : 'bg-[#111827]/90 text-white border-slate-700/70 hover:border-slate-600'
       }`}
@@ -51,6 +66,12 @@ const AnimatedCandidateCard: React.FC<{
           >
             PASLON 0{candidate.number}
           </span>
+          {isFlashing && (
+            <span className="inline-flex items-center gap-1 bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase animate-bounce shadow-md">
+              <span className="material-symbols-outlined text-xs">bolt</span>
+              DATA BARU
+            </span>
+          )}
         </div>
 
         {/* TV Status Badge */}
@@ -75,8 +96,12 @@ const AnimatedCandidateCard: React.FC<{
         <div className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center">
           <div className="relative">
             <div
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 shadow-xl ${
-                isLeading ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-slate-700'
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 shadow-xl transition-all duration-300 ${
+                isFlashing
+                  ? 'border-emerald-400 ring-4 ring-emerald-400/40 scale-105'
+                  : isLeading
+                  ? 'border-amber-400 ring-2 ring-amber-400/40'
+                  : 'border-slate-700'
               }`}
             >
               <img
@@ -111,13 +136,15 @@ const AnimatedCandidateCard: React.FC<{
           {/* Main Percentage & Vote Count */}
           <div className="flex items-baseline gap-2.5 flex-wrap my-0.5">
             <span
-              className={`font-data-xl text-3xl md:text-5xl font-black leading-none tabular-nums tracking-tight ${
+              className={`font-data-xl text-3xl md:text-5xl font-black leading-none tabular-nums tracking-tight transition-transform duration-300 ${
+                isFlashing ? 'animate-live-flash' : ''
+              } ${
                 isLeading ? 'text-amber-300 drop-shadow-[0_2px_10px_rgba(252,211,77,0.3)]' : isPaslon1 ? 'text-rose-400' : 'text-amber-400'
               }`}
             >
               {animatedPercentage.toFixed(1)}%
             </span>
-            <span className="text-sm md:text-base font-bold tabular-nums text-slate-200">
+            <span className={`text-sm md:text-base font-bold tabular-nums text-slate-200 ${isFlashing ? 'animate-live-flash' : ''}`}>
               {animatedVotes.toLocaleString('id-ID')} Suara
             </span>
           </div>
@@ -125,7 +152,7 @@ const AnimatedCandidateCard: React.FC<{
           {/* Progress Bar with Shimmer */}
           <div className="relative w-full h-3 rounded-full mt-2 overflow-hidden bg-slate-950/80 border border-slate-800">
             <div
-              className={`h-full rounded-full transition-all duration-700 relative overflow-hidden ${
+              className={`h-full rounded-full transition-all duration-700 ease-out relative overflow-hidden ${
                 isPaslon1 ? 'bg-gradient-to-r from-rose-600 to-rose-500' : 'bg-gradient-to-r from-amber-600 to-amber-500'
               }`}
               style={{

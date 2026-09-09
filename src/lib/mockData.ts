@@ -143,9 +143,12 @@ export const calculateSummary = (
   tpsList: TPSRecapItem[],
   candidatesList: Candidate[] = MOCK_CANDIDATES
 ): ElectionSummary => {
-  const verifiedList = tpsList.filter(t => t.status === 'verified' || t.status === 'locked');
+  // Aggregate all TPS that have entered data (submitted, verified, locked, or valid votes > 0)
+  const activeList = tpsList.filter(
+    t => t.status === 'verified' || t.status === 'locked' || t.status === 'submitted' || t.total_valid_votes > 0
+  );
   const total_tps = tpsList.length;
-  const verified_tps = verifiedList.length;
+  const verified_tps = activeList.length;
   const total_dpt = tpsList.reduce((sum, t) => sum + t.registered_voters, 0);
   
   // Track votes & leading count per candidate number
@@ -158,13 +161,13 @@ export const calculateSummary = (
     candidateLeadingMap[c.number] = 0;
   });
 
-  verifiedList.forEach(t => {
+  activeList.forEach(t => {
     candidatesList.forEach(c => {
       const votes = t.candidate_votes[String(c.number)]?.votes || 0;
       candidateVotesMap[c.number] = (candidateVotesMap[c.number] || 0) + votes;
     });
 
-    total_invalid_votes += t.invalid_votes_count;
+    total_invalid_votes += (t.invalid_votes_count || 0);
 
     if (t.leading_candidate_number && candidateLeadingMap[t.leading_candidate_number] !== undefined) {
       candidateLeadingMap[t.leading_candidate_number] = (candidateLeadingMap[t.leading_candidate_number] || 0) + 1;

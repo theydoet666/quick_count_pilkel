@@ -556,18 +556,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Modals */}
-      <VoteEntryModal
-        tps={selectedTpsForVote}
-        candidates={summary.candidates}
-        userRole={role}
-        onClose={() => setSelectedTpsForVote(null)}
-        onSaveVotes={updateTPSLocal}
-      />
+      {selectedTpsForVote && (
+        <VoteEntryModal
+          tps={selectedTpsForVote}
+          candidates={summary.candidates}
+          userRole={role}
+          onClose={() => setSelectedTpsForVote(null)}
+          onSaveVotes={updateTPSLocal}
+        />
+      )}
 
-      <TPSAuditLogModal
-        tps={selectedTpsForAudit}
-        onClose={() => setSelectedTpsForAudit(null)}
-      />
+      {selectedTpsForAudit && (
+        <TPSAuditLogModal
+          tps={selectedTpsForAudit}
+          onClose={() => setSelectedTpsForAudit(null)}
+        />
+      )}
 
     </div>
   );

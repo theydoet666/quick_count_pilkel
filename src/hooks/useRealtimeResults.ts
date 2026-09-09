@@ -3,6 +3,19 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { ElectionSummary, TPSRecapItem, TPSStatus, ElectionSettings, Candidate, OfficerUser } from '../types/database.types';
 import { MOCK_ELECTION, MOCK_TPS_RECAP, MOCK_CANDIDATES, DEFAULT_ELECTION_SETTINGS, MOCK_OFFICERS, calculateSummary } from '../lib/mockData';
 
+// Cross-tab Realtime Sync Channel (Instant sync across browser tabs/windows on the same machine)
+const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('belega_quick_count_sync')
+  : null;
+
+const notifySync = () => {
+  if (syncChannel) {
+    try {
+      syncChannel.postMessage({ type: 'DATA_SYNC', timestamp: Date.now() });
+    } catch (_) {}
+  }
+};
+
 export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
   // 1. Election Settings State (Title, Subtitle, Organizer, Logo, Flash Count, Ticker)
   const [electionSettings, setElectionSettings] = useState<ElectionSettings>(() => {
@@ -48,7 +61,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA');
   }, []);
 
-  // --- FETCH RESULTS FROM SUPABASE ---
+  // --- FETCH RESULTS FROM SUPABASE / LOCAL ---
   const fetchResults = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -56,8 +69,18 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     if (!isSupabaseConfigured) {
       const current = localStorage.getItem('belega_tps_recap');
       const list: TPSRecapItem[] = current ? JSON.parse(current) : MOCK_TPS_RECAP;
+      
+      const currentCandsStr = localStorage.getItem('belega_candidates');
+      const currentCands: Candidate[] = currentCandsStr ? JSON.parse(currentCandsStr) : candidatesList;
+      
+      const currentSettingsStr = localStorage.getItem('belega_election_settings');
+      if (currentSettingsStr) {
+        setElectionSettings(JSON.parse(currentSettingsStr));
+      }
+
+      setCandidatesList(currentCands);
       setTpsList(list);
-      recalculate(list, candidatesList);
+      recalculate(list, currentCands);
       isFetchingRef.current = false;
       return;
     }
@@ -210,17 +233,42 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
   useEffect(() => {
     fetchResults();
 
-    if (!isSupabaseConfigured) return;
+    // 1. Cross-tab sync via BroadcastChannel
+    const handleBroadcast = () => {
+      fetchResults();
+    };
 
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+    if (syncChannel) {
+      syncChannel.addEventListener('message', handleBroadcast);
+    }
+
+    // 2. Storage event listener (when local storage changes across tabs)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('belega_')) {
         fetchResults();
-      })
-      .subscribe();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // 3. Supabase Realtime Subscription
+    let channel: any = null;
+    if (isSupabaseConfigured) {
+      channel = supabase
+        .channel('schema-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+          fetchResults();
+        })
+        .subscribe();
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (syncChannel) {
+        syncChannel.removeEventListener('message', handleBroadcast);
+      }
+      window.removeEventListener('storage', handleStorage);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [fetchResults]);
 
@@ -523,6 +571,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
       localStorage.setItem('belega_tps_recap', JSON.stringify(next));
       recalculate(next, candidatesList);
+      notifySync();
       return next;
     });
 
@@ -575,6 +624,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       const next = prev.map(item => item.polling_station_id === tpsId ? { ...item, status } : item);
       localStorage.setItem('belega_tps_recap', JSON.stringify(next));
       recalculate(next, candidatesList);
+      notifySync();
       return next;
     });
 
