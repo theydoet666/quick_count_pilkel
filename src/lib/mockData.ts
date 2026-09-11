@@ -37,6 +37,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 01',
     banjar_name: 'Balai Banjar Belega Kangin',
     registered_voters: 640,
+    additional_voters: 12,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -53,6 +54,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 02',
     banjar_name: 'Balai Banjar Belega Kauh',
     registered_voters: 610,
+    additional_voters: 8,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -69,6 +71,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 03',
     banjar_name: 'Balai Banjar Belega Tengah',
     registered_voters: 680,
+    additional_voters: 15,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -85,6 +88,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 04',
     banjar_name: 'Balai Banjar Kebon',
     registered_voters: 590,
+    additional_voters: 6,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -101,6 +105,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 05',
     banjar_name: 'Balai Banjar Jasri',
     registered_voters: 650,
+    additional_voters: 10,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -117,6 +122,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     code: 'TPS 06',
     banjar_name: 'Balai Banjar Selat',
     registered_voters: 658,
+    additional_voters: 9,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -150,6 +156,8 @@ export const calculateSummary = (
   const total_tps = tpsList.length;
   const verified_tps = activeList.length;
   const total_dpt = tpsList.reduce((sum, t) => sum + t.registered_voters, 0);
+  const total_additional_dpt = tpsList.reduce((sum, t) => sum + (t.additional_voters || 0), 0);
+  const total_voter_base = total_dpt + total_additional_dpt;
   
   // Track votes & leading count per candidate number
   const candidateVotesMap: Record<number, number> = {};
@@ -176,7 +184,7 @@ export const calculateSummary = (
 
   const total_valid_votes = Object.values(candidateVotesMap).reduce((sum, v) => sum + v, 0);
   const total_votes_entered = total_valid_votes + total_invalid_votes;
-  const participation_rate = total_dpt > 0 ? parseFloat(((total_votes_entered / total_dpt) * 100).toFixed(1)) : 0;
+  const participation_rate = total_voter_base > 0 ? parseFloat(((total_votes_entered / total_voter_base) * 100).toFixed(1)) : 0;
 
   const candidateSummaries: CandidateSummary[] = candidatesList.map(c => {
     const total_votes = candidateVotesMap[c.number] || 0;
@@ -199,6 +207,7 @@ export const calculateSummary = (
     total_tps,
     verified_tps,
     total_dpt,
+    total_additional_dpt,
     total_valid_votes,
     total_invalid_votes,
     total_votes_entered,

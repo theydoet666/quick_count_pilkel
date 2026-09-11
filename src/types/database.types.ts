@@ -58,6 +58,7 @@ export interface PollingStation {
   code: string;
   banjar_name: string;
   registered_voters: number;
+  additional_voters?: number;
   status: TPSStatus;
   evidence_photo_url: string | null;
   verified_by: string | null;
@@ -111,6 +112,7 @@ export interface ElectionSummary {
   total_tps: number;
   verified_tps: number;
   total_dpt: number;
+  total_additional_dpt: number;
   total_valid_votes: number;
   total_invalid_votes: number;
   total_votes_entered: number;
@@ -123,6 +125,7 @@ export interface TPSRecapItem {
   code: string;
   banjar_name: string;
   registered_voters: number;
+  additional_voters?: number;
   status: TPSStatus;
   evidence_photo_url: string | null;
   total_valid_votes: number;

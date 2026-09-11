@@ -151,7 +151,32 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       let loadedTps = tpsList;
 
       if (recapRes.data && Array.isArray(recapRes.data) && recapRes.data.length > 0) {
-        loadedTps = recapRes.data as TPSRecapItem[];
+        // Also fetch additional_voters directly from polling_stations table in case RPC doesn't have it yet
+        const { data: psAddData } = await supabase
+          .from('polling_stations')
+          .select('id, additional_voters, registered_voters');
+
+        const addMap = new Map<string, number>();
+        if (psAddData) {
+          psAddData.forEach((p: any) => {
+            if (p.additional_voters !== undefined && p.additional_voters !== null) {
+              addMap.set(p.id, Number(p.additional_voters) || 0);
+            }
+          });
+        }
+
+        const savedCurrent = localStorage.getItem('belega_tps_recap');
+        const savedList: TPSRecapItem[] = savedCurrent ? JSON.parse(savedCurrent) : [];
+
+        loadedTps = (recapRes.data as TPSRecapItem[]).map(t => {
+          const fromDb = addMap.get(t.polling_station_id);
+          const fromSaved = savedList.find(s => s.polling_station_id === t.polling_station_id)?.additional_voters;
+          return {
+            ...t,
+            additional_voters: fromDb !== undefined ? fromDb : (fromSaved !== undefined ? fromSaved : (t.additional_voters || 0))
+          };
+        });
+
         setTpsList(loadedTps);
         localStorage.setItem('belega_tps_recap', JSON.stringify(loadedTps));
       } else {
@@ -196,6 +221,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
               code: ps.code,
               banjar_name: ps.banjar_name,
               registered_voters: ps.registered_voters,
+              additional_voters: ps.additional_voters || 0,
               status: ps.status,
               evidence_photo_url: ps.evidence_photo_url,
               total_valid_votes: totalValid,
@@ -440,18 +466,19 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
   }, [recalculate]);
 
   // --- TPS CRUD METHODS ---
-  const addTPS = useCallback(async (newTpsData: { code: string; banjar_name: string; registered_voters: number }) => {
+  const addTPS = useCallback(async (newTpsData: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number }) => {
     let tpsId = 'tps-' + Date.now();
 
     if (isSupabaseConfigured) {
       try {
-        const { data } = await supabase
+        const { data, error: insertErr } = await supabase
           .from('polling_stations')
           .insert({
             election_id: electionId,
             code: newTpsData.code,
             banjar_name: newTpsData.banjar_name,
             registered_voters: newTpsData.registered_voters,
+            additional_voters: newTpsData.additional_voters || 0,
             status: 'pending'
           })
           .select()
@@ -459,6 +486,20 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
         if (data) {
           tpsId = data.id;
+        } else if (insertErr) {
+          // Retry without additional_voters
+          const { data: retryData } = await supabase
+            .from('polling_stations')
+            .insert({
+              election_id: electionId,
+              code: newTpsData.code,
+              banjar_name: newTpsData.banjar_name,
+              registered_voters: newTpsData.registered_voters,
+              status: 'pending'
+            })
+            .select()
+            .single();
+          if (retryData) tpsId = retryData.id;
         }
       } catch (err) {
         console.warn('Supabase addTPS fallback:', err);
@@ -480,6 +521,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         code: newTpsData.code,
         banjar_name: newTpsData.banjar_name,
         registered_voters: newTpsData.registered_voters,
+        additional_voters: newTpsData.additional_voters || 0,
         status: 'pending',
         evidence_photo_url: null,
         total_valid_votes: 0,
@@ -496,7 +538,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     });
   }, [electionId, candidatesList, recalculate]);
 
-  const updateTPSDetails = useCallback(async (tpsId: string, details: { code: string; banjar_name: string; registered_voters: number }) => {
+  const updateTPSDetails = useCallback(async (tpsId: string, details: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number }) => {
     setTpsList(prev => {
       const updated = prev.map(item => item.polling_station_id === tpsId ? { ...item, ...details } : item);
       localStorage.setItem('belega_tps_recap', JSON.stringify(updated));
@@ -506,10 +548,18 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('polling_stations')
           .update(details)
           .eq('id', tpsId);
+
+        if (updateErr && details.additional_voters !== undefined) {
+          const { code, banjar_name, registered_voters } = details;
+          await supabase
+            .from('polling_stations')
+            .update({ code, banjar_name, registered_voters })
+            .eq('id', tpsId);
+        }
       } catch (err) {
         console.error('Failed to update TPS details on Supabase:', err);
       }
@@ -533,14 +583,15 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     }
   }, [candidatesList, recalculate]);
 
-  // Update votes & status for a TPS
+  // Update votes, status, & additional_voters for a TPS
   const updateTPSLocal = useCallback(async (
     tpsId: string,
     votes1: number,
     votes2: number,
     invalid: number,
     photoUrl?: string,
-    newStatus?: TPSStatus
+    newStatus?: TPSStatus,
+    additionalVoters?: number
   ) => {
     const totalValid = votes1 + votes2;
     const leading = votes1 > votes2 ? 1 : votes2 > votes1 ? 2 : null;
@@ -553,6 +604,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         if (item.polling_station_id === tpsId) {
           return {
             ...item,
+            additional_voters: additionalVoters !== undefined ? additionalVoters : (item.additional_voters || 0),
             status: newStatus || item.status,
             evidence_photo_url: photoUrl !== undefined ? photoUrl : item.evidence_photo_url,
             total_valid_votes: totalValid,
@@ -577,15 +629,34 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        // 1. Update Polling Station status & photo
-        await supabase
+        // 1. Update Polling Station status, additional_voters & photo
+        const psUpdatePayload: any = {
+          status: newStatus || 'submitted',
+          evidence_photo_url: photoUrl !== undefined ? photoUrl : null,
+          updated_at: new Date().toISOString()
+        };
+        if (additionalVoters !== undefined) {
+          psUpdatePayload.additional_voters = additionalVoters;
+        }
+
+        const { error: updateErr } = await supabase
           .from('polling_stations')
-          .update({
+          .update(psUpdatePayload)
+          .eq('id', tpsId);
+
+        // Fallback retry if additional_voters column is not yet created in Supabase DB schema
+        if (updateErr && additionalVoters !== undefined) {
+          console.warn('Supabase polling_stations update with additional_voters failed (column might not exist in Supabase yet), retrying without additional_voters:', updateErr.message);
+          const basicPayload = {
             status: newStatus || 'submitted',
             evidence_photo_url: photoUrl !== undefined ? photoUrl : null,
             updated_at: new Date().toISOString()
-          })
-          .eq('id', tpsId);
+          };
+          await supabase
+            .from('polling_stations')
+            .update(basicPayload)
+            .eq('id', tpsId);
+        }
 
         // 2. Upsert Candidate Votes
         if (candidatesList[0]) {

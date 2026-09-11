@@ -86,8 +86,10 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary }) => {
         <span className={`text-base sm:text-xl md:text-2xl font-black text-amber-400 block my-0.5 tabular-nums ${isValidFlashing ? 'animate-live-flash' : ''}`}>
           {animatedParticipation.toFixed(1)}%
         </span>
-        <div className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 text-[10px] sm:text-[11px] font-bold tabular-nums border border-amber-500/20">
-          <span className="truncate">{summary.total_dpt.toLocaleString('id-ID')} DPT</span>
+        <div className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 text-[10px] sm:text-[11px] font-bold tabular-nums border border-amber-500/20 max-w-full">
+          <span className="truncate" title={`${summary.total_dpt} DPT + ${summary.total_additional_dpt || 0} DPTb`}>
+            {(summary.total_dpt + (summary.total_additional_dpt || 0)).toLocaleString('id-ID')} Pemilih (DPT + DPTb)
+          </span>
         </div>
       </div>
 

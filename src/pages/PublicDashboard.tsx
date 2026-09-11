@@ -57,7 +57,7 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
           <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
             <span>{tpsList.length} Banjar Dinas / TPS</span>
             <span className="text-slate-600">•</span>
-            <span>{summary.total_dpt.toLocaleString('id-ID')} DPT</span>
+            <span>{(summary.total_dpt + (summary.total_additional_dpt || 0)).toLocaleString('id-ID')} Hak Pilih ({summary.total_dpt.toLocaleString('id-ID')} DPT + {(summary.total_additional_dpt || 0).toLocaleString('id-ID')} DPTb)</span>
             <span className="text-slate-600">•</span>
             <span>
               {summary.verified_tps === summary.total_tps && summary.total_tps > 0 ? (

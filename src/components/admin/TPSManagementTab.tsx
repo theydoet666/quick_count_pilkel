@@ -3,8 +3,8 @@ import { TPSRecapItem } from '../../types/database.types';
 
 interface TPSManagementTabProps {
   tpsList: TPSRecapItem[];
-  onAddTPS: (tps: { code: string; banjar_name: string; registered_voters: number }) => void;
-  onUpdateTPS: (tpsId: string, details: { code: string; banjar_name: string; registered_voters: number }) => void;
+  onAddTPS: (tps: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number }) => void;
+  onUpdateTPS: (tpsId: string, details: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number }) => void;
   onDeleteTPS: (tpsId: string) => void;
 }
 
@@ -19,8 +19,11 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
   const [code, setCode] = useState('');
   const [banjarName, setBanjarName] = useState('');
   const [registeredVoters, setRegisteredVoters] = useState<number>(500);
+  const [additionalVoters, setAdditionalVoters] = useState<number>(0);
 
   const totalDPT = tpsList.reduce((sum, t) => sum + t.registered_voters, 0);
+  const totalAdditional = tpsList.reduce((sum, t) => sum + (t.additional_voters || 0), 0);
+  const totalAllVoters = totalDPT + totalAdditional;
 
   const openAddModal = () => {
     setEditingTps(null);
@@ -28,6 +31,7 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
     setCode(`TPS ${nextNum < 10 ? '0' + nextNum : nextNum}`);
     setBanjarName('');
     setRegisteredVoters(500);
+    setAdditionalVoters(0);
     setIsModalOpen(true);
   };
 
@@ -36,6 +40,7 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
     setCode(tps.code);
     setBanjarName(tps.banjar_name);
     setRegisteredVoters(tps.registered_voters);
+    setAdditionalVoters(tps.additional_voters || 0);
     setIsModalOpen(true);
   };
 
@@ -45,13 +50,15 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
       onUpdateTPS(editingTps.polling_station_id, {
         code,
         banjar_name: banjarName,
-        registered_voters: registeredVoters
+        registered_voters: registeredVoters,
+        additional_voters: additionalVoters
       });
     } else {
       onAddTPS({
         code,
         banjar_name: banjarName,
-        registered_voters: registeredVoters
+        registered_voters: registeredVoters,
+        additional_voters: additionalVoters
       });
     }
     setIsModalOpen(false);
@@ -77,7 +84,7 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
               Manajemen Master Data TPS & DPT
             </h2>
             <p className="text-body-sm text-on-surface-variant">
-              Kelola daftar TPS, nama balai banjar, dan alokasi DPT pemilih terdaftar (Total: {tpsList.length} TPS • {totalDPT.toLocaleString('id-ID')} DPT).
+              Kelola daftar TPS, nama balai banjar, alokasi DPT Pokok & DPT Tambahan (Total: {tpsList.length} TPS • {totalDPT.toLocaleString('id-ID')} DPT Pokok + {totalAdditional.toLocaleString('id-ID')} DPTb = <strong className="text-on-surface">{totalAllVoters.toLocaleString('id-ID')} Hak Pilih</strong>).
             </p>
           </div>
         </div>
@@ -98,54 +105,66 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
             <tr>
               <th className="py-3 px-4 font-bold">Kode TPS</th>
               <th className="py-3 px-4 font-bold">Nama Banjar / Lokasi</th>
-              <th className="py-3 px-4 text-center font-bold">Jumlah DPT (Pemilih)</th>
+              <th className="py-3 px-4 text-center font-bold">DPT Pokok</th>
+              <th className="py-3 px-4 text-center font-bold">DPT Tambahan (DPTb)</th>
+              <th className="py-3 px-4 text-center font-bold">Total Hak Pilih</th>
               <th className="py-3 px-4 text-center font-bold">Status Tabulasi</th>
               <th className="py-3 px-4 text-right font-bold">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-container text-sm">
-            {tpsList.map((tps) => (
-              <tr key={tps.polling_station_id} className="hover:bg-surface-container-low transition-colors">
-                <td className="py-3 px-4 font-black text-on-surface">
-                  {tps.code}
-                </td>
-                <td className="py-3 px-4 font-semibold text-on-surface">
-                  {tps.banjar_name}
-                </td>
-                <td className="py-3 px-4 text-center font-bold text-primary tabular-nums">
-                  {tps.registered_voters.toLocaleString('id-ID')} DPT
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <span className={`px-2 py-0.5 rounded font-bold text-xs uppercase ${
-                    tps.status === 'verified'
-                      ? 'bg-primary-container text-on-primary'
-                      : tps.status === 'locked'
-                      ? 'bg-inverse-surface text-inverse-on-surface'
-                      : tps.status === 'submitted'
-                      ? 'bg-secondary-container text-on-secondary-container'
-                      : 'bg-surface-container-high text-on-surface-variant'
-                  }`}>
-                    {tps.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-right space-x-2">
-                  <button
-                    onClick={() => openEditModal(tps)}
-                    className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary transition-colors inline-flex items-center"
-                    title="Edit TPS & DPT"
-                  >
-                    <span className="material-symbols-outlined text-base">edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(tps)}
-                    className="p-1.5 rounded-lg bg-surface-container hover:bg-error-container text-error transition-colors inline-flex items-center"
-                    title="Hapus TPS"
-                  >
-                    <span className="material-symbols-outlined text-base">delete</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {tpsList.map((tps) => {
+              const addDpt = tps.additional_voters || 0;
+              const totalVoters = tps.registered_voters + addDpt;
+              return (
+                <tr key={tps.polling_station_id} className="hover:bg-surface-container-low transition-colors">
+                  <td className="py-3 px-4 font-black text-on-surface">
+                    {tps.code}
+                  </td>
+                  <td className="py-3 px-4 font-semibold text-on-surface">
+                    {tps.banjar_name}
+                  </td>
+                  <td className="py-3 px-4 text-center font-bold text-primary tabular-nums">
+                    {tps.registered_voters.toLocaleString('id-ID')} DPT
+                  </td>
+                  <td className="py-3 px-4 text-center font-semibold text-amber-700 tabular-nums">
+                    +{addDpt.toLocaleString('id-ID')} DPTb
+                  </td>
+                  <td className="py-3 px-4 text-center font-black text-on-surface tabular-nums">
+                    {totalVoters.toLocaleString('id-ID')} Pemilih
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className={`px-2 py-0.5 rounded font-bold text-xs uppercase ${
+                      tps.status === 'verified'
+                        ? 'bg-primary-container text-on-primary'
+                        : tps.status === 'locked'
+                        ? 'bg-inverse-surface text-inverse-on-surface'
+                        : tps.status === 'submitted'
+                        ? 'bg-secondary-container text-on-secondary-container'
+                        : 'bg-surface-container-high text-on-surface-variant'
+                    }`}>
+                      {tps.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right space-x-2">
+                    <button
+                      onClick={() => openEditModal(tps)}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary transition-colors inline-flex items-center"
+                      title="Edit TPS & DPT"
+                    >
+                      <span className="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(tps)}
+                      className="p-1.5 rounded-lg bg-surface-container hover:bg-error-container text-error transition-colors inline-flex items-center"
+                      title="Hapus TPS"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -195,19 +214,42 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-xs uppercase tracking-wider text-on-surface mb-1">
-                  Jumlah Pemilih Terdaftar (DPT)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  value={registeredVoters}
-                  onChange={(e) => setRegisteredVoters(parseInt(e.target.value) || 0)}
-                  placeholder="contoh: 640"
-                  className="w-full px-3.5 py-2 rounded-lg bg-surface border border-outline-variant text-on-surface font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-xs uppercase tracking-wider text-on-surface mb-1">
+                    DPT Pokok
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={registeredVoters}
+                    onChange={(e) => setRegisteredVoters(parseInt(e.target.value) || 0)}
+                    placeholder="contoh: 640"
+                    className="w-full px-3.5 py-2 rounded-lg bg-surface border border-outline-variant text-on-surface font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-xs uppercase tracking-wider text-on-surface mb-1">
+                    DPT Tambahan (DPTb)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={additionalVoters}
+                    onChange={(e) => setAdditionalVoters(parseInt(e.target.value) || 0)}
+                    placeholder="contoh: 10"
+                    className="w-full px-3.5 py-2 rounded-lg bg-surface border border-outline-variant text-on-surface font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container text-xs text-on-surface-variant flex justify-between items-center">
+                <span>Total Hak Pilih TPS:</span>
+                <strong className="text-primary font-bold tabular-nums">
+                  {(registeredVoters + additionalVoters).toLocaleString('id-ID')} Pemilih
+                </strong>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container">

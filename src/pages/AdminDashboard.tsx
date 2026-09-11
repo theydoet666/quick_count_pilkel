@@ -370,12 +370,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 text-center shadow-xs">
                   <span className="text-[11px] sm:text-xs text-slate-500 uppercase font-bold block">
-                    Total DPT {isOperator ? 'TPS' : ''}
+                    Total Hak Pilih {isOperator ? 'TPS' : ''}
                   </span>
                   <span className="text-xl sm:text-2xl font-black text-slate-800 block tabular-nums my-1">
-                    {visibleTpsList.reduce((sum, t) => sum + t.registered_voters, 0).toLocaleString('id-ID')}
+                    {(visibleTpsList.reduce((sum, t) => sum + t.registered_voters + (t.additional_voters || 0), 0)).toLocaleString('id-ID')}
                   </span>
-                  <span className="text-[10px] sm:text-xs text-slate-400 font-medium">{visibleTpsList.length} TPS</span>
+                  <span className="text-[10px] sm:text-xs text-slate-400 font-medium">
+                    {visibleTpsList.reduce((sum, t) => sum + t.registered_voters, 0).toLocaleString('id-ID')} DPT + {visibleTpsList.reduce((sum, t) => sum + (t.additional_voters || 0), 0).toLocaleString('id-ID')} DPTb
+                  </span>
                 </div>
               </div>
 
@@ -399,7 +401,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <thead className="bg-slate-50 text-slate-500 font-semibold text-[11px] sm:text-xs uppercase tracking-wider border-b border-slate-200/70">
                       <tr>
                         <th className="py-3 px-4 font-bold">TPS / Banjar</th>
-                        <th className="py-3 px-2 text-center font-bold">DPT</th>
+                        <th className="py-3 px-2 text-center font-bold">DPT & DPTb</th>
                         {summary.candidates.map((c) => (
                           <th key={c.id} className="py-3 px-2 text-center font-bold">
                             0{c.number} {c.name.split(',')[0]}
@@ -412,6 +414,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                       {visibleTpsList.map((tps) => {
+                        const addVoters = tps.additional_voters || 0;
+                        const totalVoters = tps.registered_voters + addVoters;
                         return (
                           <tr key={tps.polling_station_id} className="hover:bg-slate-50 transition-colors">
                             {/* TPS Code & Banjar */}
@@ -420,9 +424,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <span className="text-xs text-slate-500">{tps.banjar_name}</span>
                             </td>
 
-                            {/* DPT */}
+                            {/* DPT & DPTb */}
                             <td className="py-3 px-2 text-center font-semibold text-slate-700 tabular-nums">
-                              {tps.registered_voters.toLocaleString('id-ID')}
+                              <span className="font-bold block text-slate-900">{totalVoters.toLocaleString('id-ID')}</span>
+                              <span className="text-[10px] text-slate-400 block font-normal">
+                                {tps.registered_voters} + {addVoters} DPTb
+                              </span>
                             </td>
 
                             {/* Candidate Votes */}
