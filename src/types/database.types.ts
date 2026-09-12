@@ -18,8 +18,8 @@ export interface OfficerUser {
   email: string;
   password?: string;
   phone?: string;
-  tps_id: string;
-  role: 'operator';
+  tps_id?: string | null;
+  role: 'admin' | 'operator';
   created_at: string;
 }
 

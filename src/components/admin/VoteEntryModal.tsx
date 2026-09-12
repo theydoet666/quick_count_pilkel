@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TPSRecapItem, CandidateSummary, TPSStatus } from '../../types/database.types';
 
 interface VoteEntryModalProps {
@@ -31,6 +31,10 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
   const [photoUrl, setPhotoUrl] = useState<string>(tps?.evidence_photo_url || '');
   const [status, setStatus] = useState<TPSStatus>(tps?.status || 'pending');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (tps) {
@@ -72,15 +76,62 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
   const cand1Pct = totalValidVotes > 0 ? ((votes1 / totalValidVotes) * 100).toFixed(1) : '0';
   const cand2Pct = totalValidVotes > 0 ? ((votes2 / totalValidVotes) * 100).toFixed(1) : '0';
 
+  // Process & compress photo (especially for high-res mobile phone camera photos)
+  const processImageFile = (file: File) => {
+    setIsProcessingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          setPhotoUrl(compressedDataUrl);
+        }
+        setIsProcessingPhoto(false);
+      };
+      img.onerror = () => {
+        setIsProcessingPhoto(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      setIsProcessingPhoto(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
     }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   const handleSave = (targetStatus?: TPSStatus) => {
@@ -95,98 +146,103 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-space-md bg-black/70 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-lg w-full p-4 sm:p-space-lg shadow-2xl overflow-y-auto max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-fadeIn">
+      
+      {/* Modal Container: Full/bottom-sheet on mobile, centered card on desktop */}
+      <div className="bg-surface-container-lowest border-t sm:border border-outline-variant rounded-t-3xl sm:rounded-2xl max-w-lg w-full flex flex-col h-[94vh] sm:h-auto sm:max-h-[90vh] shadow-2xl overflow-hidden">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-surface-container pb-space-sm mb-space-md">
-          <div>
+        {/* Sticky Modal Header */}
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-surface-container bg-surface-container-low shrink-0 flex items-center justify-between">
+          <div className="min-w-0 flex-1 pr-2">
+            <div className="w-10 h-1 bg-outline-variant/60 rounded-full mx-auto sm:hidden mb-2" />
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold text-xs">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-700 text-white font-black text-xs shrink-0 shadow-xs">
                 {tps.code}
               </span>
-              <h3 className="font-headline-sm text-base sm:text-lg text-primary font-bold">
-                Input & Rekap Suara TPS
+              <h3 className="font-headline-sm text-sm sm:text-base text-slate-900 font-bold truncate">
+                Input & Rekap Suara
               </h3>
             </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              {tps.banjar_name} • DPT Pokok: <strong className="text-on-surface">{dptPokok}</strong>
+            <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
+              {tps.banjar_name} • DPT Pokok: <strong className="text-slate-800">{dptPokok}</strong>
             </p>
           </div>
+          
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-200/70 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors shrink-0"
+            title="Tutup"
           >
             <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
-        {/* Validation Warning */}
-        {isExceeded && (
-          <div className="bg-error-container text-on-error-container p-3.5 rounded-xl mb-space-md text-xs sm:text-sm border border-error/40 shadow-xs space-y-2">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-lg text-error shrink-0">warning</span>
-              <div>
-                <strong className="block font-bold text-error">Total Suara Melebihi Hak Pilih!</strong>
-                <span>Total suara masuk ({totalEnteredVotes}) melebihi total hak pilih DPT + DPT Tambahan ({totalHakPilih}).</span>
-              </div>
-            </div>
-            
-            {/* Quick-fix Auto Button */}
-            {totalEnteredVotes > dptPokok && (
-              <div className="pt-1.5 border-t border-error/20 flex items-center justify-between flex-wrap gap-1.5">
-                <span className="text-[11px] text-on-error-container">Selisih pemilih tambahan: <strong>+{totalEnteredVotes - dptPokok}</strong></span>
-                <button
-                  type="button"
-                  onClick={() => setAdditionalVoters(totalEnteredVotes - dptPokok)}
-                  className="px-2.5 py-1 rounded-lg bg-error text-white font-bold text-xs hover:bg-error/90 transition-all flex items-center gap-1 shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-xs">auto_fix_high</span>
-                  Set DPT Tambahan = +{totalEnteredVotes - dptPokok}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {errorMsg && !isExceeded && (
-          <div className="bg-error-container text-on-error-container p-3 rounded-xl mb-space-md text-xs sm:text-sm">
-            {errorMsg}
-          </div>
-        )}
-
-        {/* Locked warning */}
-        {tps.status === 'locked' && userRole !== 'admin' && (
-          <div className="bg-surface-container text-on-surface-variant p-3 rounded-xl mb-space-md text-xs sm:text-sm flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg text-amber-500">lock</span>
-            <span>Data TPS ini telah dikunci oleh Ketua Panitia. Hanya Admin yang dapat mengubahnya.</span>
-          </div>
-        )}
-
-        {/* Form Inputs */}
-        <div className="space-y-3.5">
+        {/* Scrollable Form Body */}
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3.5 overscroll-contain">
           
+          {/* Validation Warning */}
+          {isExceeded && (
+            <div className="bg-error-container text-on-error-container p-3 sm:p-3.5 rounded-xl text-xs sm:text-sm border border-error/40 shadow-xs space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-lg text-error shrink-0">warning</span>
+                <div>
+                  <strong className="block font-bold text-error">Total Suara Melebihi Hak Pilih!</strong>
+                  <span>Total suara masuk ({totalEnteredVotes}) melebihi total hak pilih DPT + DPT Tambahan ({totalHakPilih}).</span>
+                </div>
+              </div>
+              
+              {/* Quick-fix Auto Button */}
+              {totalEnteredVotes > dptPokok && (
+                <div className="pt-1.5 border-t border-error/20 flex items-center justify-between flex-wrap gap-1.5">
+                  <span className="text-[11px] text-on-error-container">Selisih pemilih tambahan: <strong>+{totalEnteredVotes - dptPokok}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalVoters(totalEnteredVotes - dptPokok)}
+                    className="px-2.5 py-1 rounded-lg bg-error text-white font-bold text-xs hover:bg-error/90 transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xs">auto_fix_high</span>
+                    Set DPT Tambahan = +{totalEnteredVotes - dptPokok}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {errorMsg && !isExceeded && (
+            <div className="bg-error-container text-on-error-container p-3 rounded-xl text-xs sm:text-sm">
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Locked warning */}
+          {tps.status === 'locked' && userRole !== 'admin' && (
+            <div className="bg-amber-50 text-amber-900 border border-amber-200 p-3 rounded-xl text-xs sm:text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg text-amber-600 shrink-0">lock</span>
+              <span>Data TPS ini telah dikunci oleh Ketua Panitia. Hanya Admin yang dapat mengubahnya.</span>
+            </div>
+          )}
+
           {/* Section 1: DPT & Pemilih Tambahan */}
-          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/50 space-y-2">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs uppercase tracking-wider text-on-surface flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-base text-primary">badge</span>
-                1. Data Pemilih (DPT & Pemilih Tambahan)
+              <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base text-emerald-700">badge</span>
+                1. Data Pemilih (DPT & DPTb)
               </span>
-              <span className="text-[11px] font-bold text-primary tabular-nums">
-                Total Hak Pilih: {totalHakPilih} Orang
+              <span className="text-[11px] font-bold text-emerald-800 tabular-nums">
+                Hak Pilih: {totalHakPilih} Orang
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="bg-surface p-2 rounded-lg border border-outline-variant/40">
-                <span className="text-[10px] uppercase font-bold text-on-surface-variant block">DPT (Daftar Pemilih Tetap)</span>
-                <span className="text-base font-black text-on-surface tabular-nums">{dptPokok}</span>
-                <span className="text-[10px] text-on-surface-variant block">Pemilih terdaftar di TPS</span>
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">DPT Pokok</span>
+                <span className="text-base font-black text-slate-900 tabular-nums">{dptPokok}</span>
+                <span className="text-[10px] text-slate-400 block truncate">Pemilih Tetap</span>
               </div>
 
-              <div className="bg-surface p-2 rounded-lg border-2 border-primary/40 focus-within:border-primary shadow-xs">
-                <label className="text-[10px] uppercase font-bold text-primary block">Pemilih Tambahan (Luar DPT)</label>
+              <div className="bg-white p-2.5 rounded-lg border-2 border-emerald-600/40 focus-within:border-emerald-600 shadow-xs">
+                <label className="text-[10px] uppercase font-bold text-emerald-800 block truncate">Pemilih Tambahan (DPTb)</label>
                 <div className="flex items-center gap-1 mt-0.5">
                   <input
                     type="number"
@@ -196,9 +252,9 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => setAdditionalVoters(Math.max(0, parseInt(e.target.value) || 0))}
                     disabled={tps.status === 'locked' && userRole !== 'admin'}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-0.5 text-sm font-bold text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-sm font-bold text-emerald-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-emerald-600"
                   />
-                  <span className="text-[11px] font-semibold text-on-surface-variant shrink-0">Org</span>
+                  <span className="text-[11px] font-semibold text-slate-500 shrink-0">Org</span>
                 </div>
               </div>
             </div>
@@ -206,27 +262,31 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
 
           {/* Section 2: Perolehan Suara Sah Calon */}
           <div className="space-y-2">
-            <span className="font-bold text-xs uppercase tracking-wider text-on-surface flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base text-secondary">how_to_vote</span>
+            <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base text-emerald-700">how_to_vote</span>
               2. Perolehan Suara Sah Calon
             </span>
 
             {/* Paslon 01 */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-secondary-fixed/50">
+            <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-200">
               <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  {cand1?.photo_url && (
+                <div className="flex items-center gap-2 min-w-0">
+                  {cand1?.photo_url ? (
                     <img
                       src={cand1.photo_url}
                       alt={cand1Name}
-                      className="w-6 h-6 rounded-full object-cover border border-secondary shrink-0"
+                      className="w-6 h-6 rounded-full object-cover border border-amber-600 shrink-0"
                     />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-amber-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      01
+                    </div>
                   )}
-                  <span className="text-xs font-bold text-secondary truncate">
+                  <span className="text-xs font-bold text-amber-950 truncate">
                     PASLON 0{cand1?.number || 1} — {cand1Name}
                   </span>
                 </div>
-                <span className="text-[11px] font-bold text-secondary tabular-nums">
+                <span className="text-xs font-black text-amber-800 tabular-nums shrink-0 ml-1">
                   {cand1Pct}%
                 </span>
               </div>
@@ -239,28 +299,32 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setVotes1(Math.max(0, parseInt(e.target.value) || 0))}
                   disabled={tps.status === 'locked' && userRole !== 'admin'}
-                  className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-base font-bold text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-secondary"
+                  className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-base font-black text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-xs"
                 />
-                <span className="text-xs font-semibold text-on-surface-variant shrink-0">Suara</span>
+                <span className="text-xs font-bold text-slate-600 shrink-0">Suara</span>
               </div>
             </div>
 
             {/* Paslon 02 */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-tertiary-fixed/50">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  {cand2?.photo_url && (
+                <div className="flex items-center gap-2 min-w-0">
+                  {cand2?.photo_url ? (
                     <img
                       src={cand2.photo_url}
                       alt={cand2Name}
-                      className="w-6 h-6 rounded-full object-cover border border-tertiary-fixed-dim shrink-0"
+                      className="w-6 h-6 rounded-full object-cover border border-slate-400 shrink-0"
                     />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      02
+                    </div>
                   )}
-                  <span className="text-xs font-bold text-tertiary-fixed-dim truncate">
+                  <span className="text-xs font-bold text-slate-800 truncate">
                     PASLON 0{cand2?.number || 2} — {cand2Name}
                   </span>
                 </div>
-                <span className="text-[11px] font-bold text-tertiary-fixed-dim tabular-nums">
+                <span className="text-xs font-black text-slate-700 tabular-nums shrink-0 ml-1">
                   {cand2Pct}%
                 </span>
               </div>
@@ -273,19 +337,19 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setVotes2(Math.max(0, parseInt(e.target.value) || 0))}
                   disabled={tps.status === 'locked' && userRole !== 'admin'}
-                  className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-base font-bold text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-tertiary-fixed-dim"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base font-black text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-xs"
                 />
-                <span className="text-xs font-semibold text-on-surface-variant shrink-0">Suara</span>
+                <span className="text-xs font-bold text-slate-600 shrink-0">Suara</span>
               </div>
             </div>
           </div>
 
           {/* Section 3: Suara Tidak Sah */}
-          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/40">
+          <div className="p-3 rounded-xl bg-rose-50/60 border border-rose-200">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-bold text-xs uppercase tracking-wider text-error flex items-center gap-1">
+              <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-rose-800 flex items-center gap-1">
                 <span className="material-symbols-outlined text-base">cancel</span>
-                3. Suara Tidak Sah (Surat Suara Rusak / Blanko)
+                3. Suara Tidak Sah (Rusak / Blanko)
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -297,30 +361,30 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => setInvalidVotes(Math.max(0, parseInt(e.target.value) || 0))}
                 disabled={tps.status === 'locked' && userRole !== 'admin'}
-                className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-base font-bold text-error tabular-nums focus:outline-none focus:ring-1 focus:ring-error"
+                className="w-full bg-white border border-rose-300 rounded-lg px-3 py-2 text-base font-black text-rose-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-rose-500 shadow-xs"
               />
-              <span className="text-xs font-semibold text-on-surface-variant shrink-0">Lembar</span>
+              <span className="text-xs font-bold text-slate-600 shrink-0">Lembar</span>
             </div>
           </div>
 
           {/* Section 4: Live Breakdown & Reconciliation */}
-          <div className="bg-surface-container p-3.5 rounded-xl text-xs space-y-2 border border-outline-variant/30">
-            <div className="flex items-center justify-between font-bold text-on-surface pb-1 border-b border-surface-container-high">
-              <span>Rekonsiliasi Pengguna Hak Pilih & Suara</span>
-              <span className="text-[11px] text-primary">Partisipasi Hadir: {participationPct}%</span>
+          <div className="bg-slate-100 p-3 sm:p-3.5 rounded-xl text-xs space-y-2 border border-slate-200">
+            <div className="flex items-center justify-between font-bold text-slate-900 pb-1 border-b border-slate-200">
+              <span>Rekonsiliasi Suara & Hak Pilih</span>
+              <span className="text-[11px] text-emerald-800 font-bold">Hadir: {participationPct}%</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 text-on-surface-variant">
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 text-slate-600">
               <div className="flex justify-between">
                 <span>DPT Pokok:</span>
-                <strong className="text-on-surface tabular-nums">{dptPokok}</strong>
+                <strong className="text-slate-900 tabular-nums">{dptPokok}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Pemilih Tambahan:</span>
-                <strong className="text-primary tabular-nums">+{dptTambahan}</strong>
+                <span>DPTb (+):</span>
+                <strong className="text-emerald-800 tabular-nums">+{dptTambahan}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Total Suara Sah Calon:</span>
+                <span>Suara Sah Calon:</span>
                 <strong className="text-emerald-700 tabular-nums">{totalValidVotes}</strong>
               </div>
               <div className="flex justify-between">
@@ -329,49 +393,143 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
               </div>
             </div>
 
-            <div className="pt-2 border-t border-surface-container-high flex justify-between items-center text-sm">
-              <span className="font-bold text-on-surface">Pemilih yang Hadir (Total Suara Masuk):</span>
-              <strong className={`text-base font-black tabular-nums ${isExceeded ? 'text-error' : 'text-primary'}`}>
-                {totalEnteredVotes} / {totalHakPilih} Pemilih
+            <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs sm:text-sm">
+              <span className="font-bold text-slate-900">Total Suara Masuk:</span>
+              <strong className={`text-sm sm:text-base font-black tabular-nums ${isExceeded ? 'text-rose-600' : 'text-emerald-800'}`}>
+                {totalEnteredVotes} / {totalHakPilih}
               </strong>
             </div>
             
-            <div className="flex justify-between text-[11px] text-on-surface-variant italic">
+            <div className="flex justify-between text-[11px] text-slate-500 italic">
               <span>Pemilih Tidak Hadir (Golput):</span>
-              <span className="font-semibold tabular-nums">{sisaHakPilih} orang</span>
+              <span className="font-semibold tabular-nums text-slate-700">{sisaHakPilih} orang</span>
             </div>
           </div>
 
-          {/* Section 5: Photo Evidence Upload */}
-          <div>
-            <label className="block text-xs font-bold text-on-surface mb-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-base text-primary">photo_camera</span>
-              Unggah Foto Bukti Formulir C-Hasil
-            </label>
+          {/* Section 5: Mobile-Friendly Photo Upload for C-Hasil */}
+          <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base text-emerald-700">photo_camera</span>
+                5. Bukti Formulir C-Hasil TPS
+              </label>
+              {photoUrl && (
+                <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-0.5">
+                  <span className="material-symbols-outlined text-xs">check_circle</span>
+                  Foto Terlampir
+                </span>
+              )}
+            </div>
+
+            {/* Hidden native file inputs */}
             <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoUpload}
+              disabled={tps.status === 'locked' && userRole !== 'admin'}
+              className="hidden"
+            />
+            <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handlePhotoUpload}
               disabled={tps.status === 'locked' && userRole !== 'admin'}
-              className="block w-full text-xs text-on-surface-variant file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-surface-container-high file:text-primary hover:file:bg-primary/10"
+              className="hidden"
             />
-            {photoUrl && (
-              <div className="mt-2 relative w-full h-28 rounded-xl overflow-hidden border border-outline-variant shadow-inner">
-                <img src={photoUrl} alt="Preview C-Hasil" className="w-full h-full object-cover" />
+
+            {!photoUrl ? (
+              /* No Photo State: Action Cards for Mobile & Desktop */
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-3 sm:p-4 text-center bg-white hover:bg-slate-50/80 transition-colors">
+                {isProcessingPhoto ? (
+                  <div className="py-4 text-center space-y-1">
+                    <span className="material-symbols-outlined text-2xl text-emerald-700 animate-spin">progress_activity</span>
+                    <p className="text-xs font-semibold text-slate-600">Mengompres & memproses foto...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto mb-1.5">
+                      <span className="material-symbols-outlined text-xl">add_a_photo</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Unggah Formulir C-Hasil
+                    </p>
+                    <p className="text-[11px] text-slate-500 mb-3">
+                      Ambil foto langsung melalui kamera HP atau pilih dari galeri berkas.
+                    </p>
+
+                    {/* Touch-Friendly Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        disabled={tps.status === 'locked' && userRole !== 'admin'}
+                        className="px-2.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">photo_camera</span>
+                        <span>Buka Kamera</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={tps.status === 'locked' && userRole !== 'admin'}
+                        className="px-2.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">folder_open</span>
+                        <span>Pilih Galeri</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              /* Photo Uploaded Preview Card */
+              <div className="relative rounded-xl overflow-hidden border border-slate-300 bg-black/5 shadow-inner">
+                <div className="relative w-full h-36 sm:h-44 bg-slate-900">
+                  <img
+                    src={photoUrl}
+                    alt="Preview Bukti C-Hasil"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={tps.status === 'locked' && userRole !== 'admin'}
+                      className="px-2.5 py-1 bg-black/70 hover:bg-black text-white text-[11px] font-bold rounded-lg backdrop-blur-xs flex items-center gap-1 transition-all"
+                      title="Ambil Ulang Foto"
+                    >
+                      <span className="material-symbols-outlined text-xs">autorenew</span>
+                      Ganti
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      disabled={tps.status === 'locked' && userRole !== 'admin'}
+                      className="p-1 bg-red-600/90 hover:bg-red-700 text-white rounded-lg transition-all"
+                      title="Hapus Foto"
+                    >
+                      <span className="material-symbols-outlined text-xs">delete</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
           {/* Admin Role Status Override */}
           {userRole === 'admin' && (
-            <div>
-              <label className="block text-xs font-bold text-on-surface mb-1">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="block text-xs font-bold text-slate-800 mb-1">
                 Status Verifikasi Panitia
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TPSStatus)}
-                className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-xs font-semibold focus:border-primary"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:border-emerald-700 focus:outline-none"
               >
                 <option value="pending">Pending (Belum Diinput)</option>
                 <option value="submitted">Submitted (Perlu Verifikasi Admin)</option>
@@ -384,55 +542,61 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
 
         </div>
 
-        {/* Modal Actions */}
-        <div className="mt-5 pt-3 border-t border-surface-container flex flex-wrap gap-2 justify-end">
+        {/* Sticky Modal Action Footer */}
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-surface-container bg-surface-container-low shrink-0 flex items-center justify-between sm:justify-end gap-2.5">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold transition-colors"
+            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
           >
             Batal
           </button>
 
           {userRole === 'operator' && (
             <button
+              type="button"
               onClick={() => handleSave('submitted')}
               disabled={isExceeded || tps.status === 'locked'}
-              className="px-4 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold hover:bg-secondary/90 disabled:opacity-50 transition-colors shadow-xs"
+              className="flex-1 sm:flex-initial px-5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              Simpan & Ajukan Verifikasi
+              <span className="material-symbols-outlined text-sm">send</span>
+              <span>Simpan & Ajukan</span>
             </button>
           )}
 
           {userRole === 'admin' && (
-            <>
+            <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => handleSave('verified')}
                 disabled={isExceeded}
-                className="px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-1 shadow-xs"
+                className="px-3.5 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
               >
                 <span className="material-symbols-outlined text-sm">verified</span>
-                Tandai Terverifikasi
+                <span>Verifikasi</span>
               </button>
               
               {tps.status !== 'locked' ? (
                 <button
+                  type="button"
                   onClick={() => handleSave('locked')}
                   disabled={isExceeded}
-                  className="px-4 py-2 bg-inverse-surface text-inverse-on-surface rounded-xl text-xs font-bold hover:bg-black disabled:opacity-50 transition-colors flex items-center gap-1"
+                  className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 disabled:opacity-50 transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">lock</span>
-                  Kunci Data
+                  <span>Kunci</span>
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={() => handleSave('verified')}
-                  className="px-4 py-2 bg-error-container text-on-error-container rounded-xl text-xs font-bold hover:bg-error-container/80 transition-colors flex items-center gap-1"
+                  className="px-3.5 py-2 bg-red-100 text-red-800 rounded-xl text-xs font-bold hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">lock_open</span>
-                  Buka Kunci
+                  <span>Buka Kunci</span>
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
 

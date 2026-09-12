@@ -94,9 +94,20 @@ export function useAuth() {
     const officersList: OfficerUser[] = savedOfficers ? JSON.parse(savedOfficers) : MOCK_OFFICERS;
     const foundOfficer = officersList.find(o => o.email.toLowerCase() === email.toLowerCase());
 
+    const savedTpsStr = localStorage.getItem('belega_tps_recap');
+    const localTpsList = savedTpsStr ? JSON.parse(savedTpsStr) : [];
+
     const determinedRole: UserRole = mockRole || profileData?.role || (foundOfficer ? 'operator' : (email.includes('admin') ? 'admin' : 'operator'));
-    const determinedTpsId: string | null = mockTpsId !== undefined ? mockTpsId : (profileData?.tps_id || foundOfficer?.tps_id || null);
-    const determinedName: string = mockName || profileData?.full_name || foundOfficer?.full_name || (determinedRole === 'admin' ? 'I Gede Ketut (Ketua Panitia)' : 'Petugas TPS');
+    
+    let determinedTpsId: string | null = mockTpsId !== undefined ? mockTpsId : (profileData?.tps_id || foundOfficer?.tps_id || null);
+    if (determinedRole === 'operator' && !determinedTpsId && localTpsList.length > 0) {
+      determinedTpsId = localTpsList[0].polling_station_id;
+    }
+
+    const assignedTpsObj = localTpsList.find((t: any) => t.polling_station_id === determinedTpsId);
+
+    const determinedName: string = mockName 
+      || (determinedRole === 'admin' ? (profileData?.full_name || 'I Gede Ketut (Ketua Panitia)') : (foundOfficer?.full_name || (assignedTpsObj ? `Petugas ${assignedTpsObj.code} (${assignedTpsObj.banjar_name})` : 'Petugas TPS 01')));
 
     const mockUser = { id: profileData?.id || `usr-${determinedRole}-${Date.now()}`, email };
     const mockProf: Profile = {

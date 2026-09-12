@@ -238,11 +238,9 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         }
       }
 
-      if (summaryRes.data) {
-        setSummary(summaryRes.data as ElectionSummary);
-      } else {
-        recalculate(loadedTps, currentCands);
-      }
+      // Compute 100% accurate summary directly from loaded TPS list and candidates
+      // This ensures total_dpt, total_additional_dpt (DPTb), and participation_rate are always synchronized with database data
+      recalculate(loadedTps, currentCands);
 
       setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA');
       setIsLive(true);
@@ -534,6 +532,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       const updated = [...prev, newTps];
       localStorage.setItem('belega_tps_recap', JSON.stringify(updated));
       recalculate(updated, candidatesList);
+      notifySync();
       return updated;
     });
   }, [electionId, candidatesList, recalculate]);
@@ -543,6 +542,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       const updated = prev.map(item => item.polling_station_id === tpsId ? { ...item, ...details } : item);
       localStorage.setItem('belega_tps_recap', JSON.stringify(updated));
       recalculate(updated, candidatesList);
+      notifySync();
       return updated;
     });
 
@@ -571,6 +571,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       const updated = prev.filter(item => item.polling_station_id !== tpsId);
       localStorage.setItem('belega_tps_recap', JSON.stringify(updated));
       recalculate(updated, candidatesList);
+      notifySync();
       return updated;
     });
 
@@ -724,7 +725,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
             email: officerData.email,
             phone: officerData.phone || '',
             tps_id: officerData.tps_id || null,
-            role: 'operator'
+            role: officerData.role || 'operator'
           })
           .select()
           .single();
@@ -744,8 +745,8 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         email: officerData.email,
         password: officerData.password || 'password123',
         phone: officerData.phone || '',
-        tps_id: officerData.tps_id,
-        role: 'operator',
+        tps_id: officerData.tps_id || null,
+        role: officerData.role || 'operator',
         created_at: new Date().toISOString()
       };
       const updated = [...prev, newOff];
@@ -763,14 +764,18 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
+        const payload: any = {
+          full_name: updates.full_name,
+          email: updates.email,
+          phone: updates.phone,
+          tps_id: updates.tps_id || null
+        };
+        if (updates.role) {
+          payload.role = updates.role;
+        }
         await supabase
           .from('profiles')
-          .update({
-            full_name: updates.full_name,
-            email: updates.email,
-            phone: updates.phone,
-            tps_id: updates.tps_id || null
-          })
+          .update(payload)
           .eq('id', id);
       } catch (err) {
         console.error('Failed to update officer on Supabase:', err);
