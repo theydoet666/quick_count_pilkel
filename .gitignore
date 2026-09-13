@@ -11,6 +11,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite
 *.local
 
 # Environment & Secrets (PENTING: Jangan push ke public repo!)
