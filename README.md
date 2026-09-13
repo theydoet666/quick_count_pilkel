@@ -36,7 +36,7 @@ Isi variabel dengan kredensial proyek Supabase Anda:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
-> *Catatan: Jika Supabase belum dihubungkan, aplikasi akan otomatis berjalan dalam mode fallback offline/standalone dengan seed data 6 TPS Desa Belega.*
+> *Catatan: Jika Supabase belum dihubungkan, aplikasi akan otomatis berjalan dalam mode fallback offline/standalone dengan data 6 TPS Desa Belega.*
 
 ### 4. Jalankan Server Dev Lokal
 ```bash
@@ -50,13 +50,13 @@ Buka browser di `http://localhost:5173`.
 
 1. Buka Dashboard Supabase ([supabase.com](https://supabase.com)) → Buat proyek baru.
 2. Buka **SQL Editor** pada Dashboard Supabase Anda.
-3. Jalankan SQL migration dari file [`supabase/migrations/20260907000000_init_schema.sql`](file:///d:/project/quick-count-pilkel/supabase/migrations/20260907000000_init_schema.sql):
+3. Jalankan SQL migration dari file `supabase/migrations/20260907000000_init_schema.sql` dan `supabase/migrations/20260911000000_add_additional_voters.sql`:
    - Membuat 7 Tabel (`elections`, `candidates`, `polling_stations`, `vote_results`, `invalid_votes`, `profiles`, `audit_logs`).
    - Membuat PostgreSQL Trigger Function `log_audit_change()`.
    - Mengaktifkan Row Level Security (RLS) & Policies.
    - Membuat RPC Function `get_election_summary()` dan `get_tps_recap()`.
    - Membuat Storage Bucket `evidence-photos` dan `candidate-photos`.
-4. (Opsional) Jalankan SQL seed data dari file [`supabase/seed.sql`](file:///d:/project/quick-count-pilkel/supabase/seed.sql) untuk mengunggah 2 paslon dan 6 TPS Desa Belega awal.
+4. (Opsional) Jalankan SQL seed data dari file `supabase/seed.sql` untuk mengunggah paslon dan data TPS Desa Belega awal.
 
 ---
 
@@ -83,9 +83,11 @@ Buka browser di `http://localhost:5173`.
 
 ## 🔐 Hak Akses & Fitur Admin
 - **Public (`/`)**: Menampilkan siaran resmi hasil hitung cepat, grafik paslon, tabel TPS, dan modal foto bukti C-Hasil (hanya data `verified` atau `locked` yang tampil).
-- **Admin Login (`/admin/login`)**: Login panitia via Supabase Auth email/password atau tombol pilihan role testing.
+- **Admin Login (`/admin/login`)**: Login panitia via Supabase Auth email/password dengan pemilih akun per petugas TPS.
 - **Admin Dashboard (`/admin`)**:
   - Input/edit suara per kandidat + suara tidak sah per TPS.
-  - Upload foto formulir C-Hasil per TPS.
-  - **Role Operator**: Input data dan mengubah status dari `pending` → `submitted`.
-  - **Role Admin**: Melakukan `verify`, `lock` / `unlock` TPS, dan melihat riwayat audit log.
+  - Upload foto formulir C-Hasil per TPS dengan kompresi otomatis di browser.
+  - Verifikasi dan penguncian data TPS (`verify`, `lock` / `unlock`).
+  - Riwayat jejak digital / audit log per TPS.
+  - Cetak / Export Berita Acara Tabulasi Resmi (PDF / Print).
+  - Manajemen Petugas TPS, DPT, Calon, dan Pengaturan Judul/Logo.
