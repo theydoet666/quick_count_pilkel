@@ -20,6 +20,18 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
   const { summary, tpsList, electionSettings, isLive, lastUpdated } = useRealtimeResults();
   const [selectedEvidenceTps, setSelectedEvidenceTps] = useState<TPSRecapItem | null>(null);
 
+  // Calculate unique Banjar Dinas count dynamically from TPS list data
+  const banjarCount = new Set(
+    tpsList
+      .map(t => t.banjar_name?.trim())
+      .filter(name => Boolean(name && name.length > 0))
+  ).size || (tpsList.length > 0 ? tpsList.length : 6);
+
+  // Calculate DPT and Hak Pilih totals directly from active TPS list (database sync)
+  const totalDpt = tpsList.reduce((sum, t) => sum + (Number(t.registered_voters) || 0), 0);
+  const totalDptb = tpsList.reduce((sum, t) => sum + (Number(t.additional_voters) || 0), 0);
+  const totalHakPilih = totalDpt + totalDptb;
+
   return (
     <div className="min-h-screen bg-[#070b12] text-slate-100 flex flex-col select-none antialiased relative overflow-x-hidden bg-tv-grid">
       
@@ -55,9 +67,11 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
-            <span>{tpsList.length} Banjar Dinas / TPS</span>
+            <span>{banjarCount} Banjar Dinas • {tpsList.length} TPS</span>
             <span className="text-slate-600">•</span>
-            <span>{(summary.total_dpt + (summary.total_additional_dpt || 0)).toLocaleString('id-ID')} Hak Pilih ({summary.total_dpt.toLocaleString('id-ID')} DPT + {(summary.total_additional_dpt || 0).toLocaleString('id-ID')} DPTb)</span>
+            <span>
+              {totalHakPilih.toLocaleString('id-ID')} Hak Pilih ({totalDpt.toLocaleString('id-ID')} DPT Pokok{totalDptb > 0 ? ` + ${totalDptb.toLocaleString('id-ID')} DPTb` : ''})
+            </span>
             <span className="text-slate-600">•</span>
             <span>
               {summary.verified_tps === summary.total_tps && summary.total_tps > 0 ? (

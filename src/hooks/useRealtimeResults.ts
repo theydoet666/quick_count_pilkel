@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { ElectionSummary, TPSRecapItem, TPSStatus, ElectionSettings, Candidate, OfficerUser } from '../types/database.types';
-import { MOCK_ELECTION, MOCK_TPS_RECAP, MOCK_CANDIDATES, DEFAULT_ELECTION_SETTINGS, MOCK_OFFICERS, calculateSummary } from '../lib/mockData';
+import { ElectionSummary, TPSRecapItem, TPSStatus, ElectionSettings, Candidate, OfficerUser, AuditLog, Profile } from '../types/database.types';
+import { MOCK_ELECTION, MOCK_TPS_RECAP, MOCK_CANDIDATES, DEFAULT_ELECTION_SETTINGS, MOCK_OFFICERS, MOCK_AUDIT_LOGS, calculateSummary } from '../lib/mockData';
+import { updateDynamicFavicon } from '../lib/dynamicFavicon';
 
 // Cross-tab Realtime Sync Channel (Instant sync across browser tabs/windows on the same machine)
 const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
@@ -39,6 +40,12 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
   const [officersList, setOfficersList] = useState<OfficerUser[]>(() => {
     const saved = localStorage.getItem('belega_officers');
     return saved ? JSON.parse(saved) : MOCK_OFFICERS;
+  });
+
+  // 5. Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    const saved = localStorage.getItem('belega_audit_logs');
+    return saved ? JSON.parse(saved) : MOCK_AUDIT_LOGS;
   });
 
   // 5. Computed Summary
@@ -120,6 +127,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         };
         setElectionSettings(mappedSettings);
         localStorage.setItem('belega_election_settings', JSON.stringify(mappedSettings));
+        updateDynamicFavicon(mappedSettings.logo_url, `Hitung Cepat ${mappedSettings.title}`);
       }
 
       // 3. Fetch Officers (Profiles) from Supabase
@@ -238,6 +246,18 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         }
       }
 
+      // 5. Fetch Audit Logs from Supabase
+      const { data: auditData } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (auditData && auditData.length > 0) {
+        setAuditLogs(auditData as AuditLog[]);
+        localStorage.setItem('belega_audit_logs', JSON.stringify(auditData));
+      }
+
       // Compute 100% accurate summary directly from loaded TPS list and candidates
       // This ensures total_dpt, total_additional_dpt (DPTb), and participation_rate are always synchronized with database data
       recalculate(loadedTps, currentCands);
@@ -301,6 +321,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     setElectionSettings(prev => {
       const updated = { ...prev, ...newSettings };
       localStorage.setItem('belega_election_settings', JSON.stringify(updated));
+      updateDynamicFavicon(updated.logo_url, `Hitung Cepat ${updated.title}`);
       return updated;
     });
 
@@ -537,23 +558,105 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     });
   }, [electionId, candidatesList, recalculate]);
 
-  const updateTPSDetails = useCallback(async (tpsId: string, details: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number }) => {
+  // --- AUDIT LOGS HELPER ---
+  const addAuditLog = useCallback(async (logData: Omit<AuditLog, 'id' | 'created_at'>) => {
+    const newLog: AuditLog = {
+      id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      ...logData,
+      created_at: new Date().toISOString()
+    };
+
+    setAuditLogs(prev => {
+      const updated = [newLog, ...prev];
+      localStorage.setItem('belega_audit_logs', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('audit_logs').insert({
+          actor_id: logData.actor_id,
+          action: logData.action,
+          table_name: logData.table_name,
+          record_id: logData.record_id,
+          old_value: logData.old_value,
+          new_value: logData.new_value,
+          created_at: newLog.created_at
+        });
+      } catch (err) {
+        console.warn('Supabase addAuditLog fallback:', err);
+      }
+    }
+  }, []);
+
+  const updateTPSDetails = useCallback(async (
+    tpsId: string,
+    details: { code: string; banjar_name: string; registered_voters: number; additional_voters?: number },
+    actor?: { id?: string; full_name: string; role: string }
+  ) => {
+    const prevTps = tpsList.find(t => t.polling_station_id === tpsId);
+
     setTpsList(prev => {
-      const updated = prev.map(item => item.polling_station_id === tpsId ? { ...item, ...details } : item);
+      const updated = prev.map(t => {
+        if (t.polling_station_id === tpsId) {
+          return {
+            ...t,
+            code: details.code,
+            banjar_name: details.banjar_name,
+            registered_voters: details.registered_voters,
+            additional_voters: details.additional_voters !== undefined ? details.additional_voters : (t.additional_voters || 0)
+          };
+        }
+        return t;
+      });
       localStorage.setItem('belega_tps_recap', JSON.stringify(updated));
       recalculate(updated, candidatesList);
       notifySync();
       return updated;
     });
 
+    // Record audit log
+    addAuditLog({
+      actor_id: actor?.id || null,
+      action: 'UPDATE_DATA_TPS',
+      table_name: 'polling_stations',
+      record_id: tpsId,
+      old_value: prevTps ? {
+        code: prevTps.code,
+        banjar_name: prevTps.banjar_name,
+        dpt_pokok: prevTps.registered_voters,
+        dpt_tambahan: prevTps.additional_voters || 0
+      } : null,
+      new_value: {
+        code: details.code,
+        banjar_name: details.banjar_name,
+        dpt_pokok: details.registered_voters,
+        dpt_tambahan: details.additional_voters || 0
+      },
+      actor_profile: actor ? {
+        id: actor.id || 'usr-temp',
+        full_name: actor.full_name,
+        role: (actor.role === 'admin' ? 'admin' : 'operator') as any,
+        created_at: new Date().toISOString()
+      } : null
+    });
+
     if (isSupabaseConfigured) {
       try {
-        const { error: updateErr } = await supabase
-          .from('polling_stations')
-          .update(details)
-          .eq('id', tpsId);
+        if (details.additional_voters !== undefined) {
+          const { error } = await supabase
+            .from('polling_stations')
+            .update(details)
+            .eq('id', tpsId);
 
-        if (updateErr && details.additional_voters !== undefined) {
+          if (error) {
+            const { code, banjar_name, registered_voters } = details;
+            await supabase
+              .from('polling_stations')
+              .update({ code, banjar_name, registered_voters })
+              .eq('id', tpsId);
+          }
+        } else {
           const { code, banjar_name, registered_voters } = details;
           await supabase
             .from('polling_stations')
@@ -564,7 +667,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         console.error('Failed to update TPS details on Supabase:', err);
       }
     }
-  }, [candidatesList, recalculate]);
+  }, [tpsList, candidatesList, recalculate, addAuditLog]);
 
   const deleteTPS = useCallback(async (tpsId: string) => {
     setTpsList(prev => {
@@ -592,13 +695,17 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     invalid: number,
     photoUrl?: string,
     newStatus?: TPSStatus,
-    additionalVoters?: number
+    additionalVoters?: number,
+    actor?: { id?: string; full_name: string; role: string }
   ) => {
     const totalValid = votes1 + votes2;
     const leading = votes1 > votes2 ? 1 : votes2 > votes1 ? 2 : null;
     const margin = Math.abs(votes1 - votes2);
     const p1Pct = totalValid > 0 ? parseFloat(((votes1 / totalValid) * 100).toFixed(1)) : 0;
     const p2Pct = totalValid > 0 ? parseFloat(((votes2 / totalValid) * 100).toFixed(1)) : 0;
+
+    const prevTps = tpsList.find(t => t.polling_station_id === tpsId);
+    const isFirstInput = !prevTps || (prevTps.total_valid_votes === 0 && prevTps.invalid_votes_count === 0 && prevTps.status === 'pending');
 
     setTpsList(prev => {
       const next = prev.map(item => {
@@ -626,6 +733,36 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       recalculate(next, candidatesList);
       notifySync();
       return next;
+    });
+
+    // Record audit log for vote change
+    addAuditLog({
+      actor_id: actor?.id || null,
+      action: isFirstInput ? 'INPUT_SUARA' : 'UPDATE_SUARA',
+      table_name: 'vote_results',
+      record_id: tpsId,
+      old_value: prevTps ? {
+        paslon_01: prevTps.candidate_votes['1']?.votes || 0,
+        paslon_02: prevTps.candidate_votes['2']?.votes || 0,
+        tidak_sah: prevTps.invalid_votes_count || 0,
+        total_suara: (prevTps.total_valid_votes || 0) + (prevTps.invalid_votes_count || 0),
+        status: prevTps.status,
+        has_photo: Boolean(prevTps.evidence_photo_url)
+      } : null,
+      new_value: {
+        paslon_01: votes1,
+        paslon_02: votes2,
+        tidak_sah: invalid,
+        total_suara: totalValid + invalid,
+        status: newStatus || prevTps?.status || 'submitted',
+        has_photo: Boolean(photoUrl || prevTps?.evidence_photo_url)
+      },
+      actor_profile: actor ? {
+        id: actor.id || 'usr-temp',
+        full_name: actor.full_name,
+        role: (actor.role === 'admin' ? 'admin' : 'operator') as any,
+        created_at: new Date().toISOString()
+      } : null
     });
 
     if (isSupabaseConfigured) {
@@ -689,15 +826,43 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         console.error('Failed to write votes to Supabase:', err);
       }
     }
-  }, [candidatesList, recalculate]);
+  }, [candidatesList, recalculate, addAuditLog]);
 
-  const updateTPSStatusLocal = useCallback(async (tpsId: string, status: TPSStatus) => {
+  const updateTPSStatusLocal = useCallback(async (
+    tpsId: string,
+    status: TPSStatus,
+    actor?: { id?: string; full_name: string; role: string }
+  ) => {
+    const prevTps = tpsList.find(t => t.polling_station_id === tpsId);
+
     setTpsList(prev => {
       const next = prev.map(item => item.polling_station_id === tpsId ? { ...item, status } : item);
       localStorage.setItem('belega_tps_recap', JSON.stringify(next));
       recalculate(next, candidatesList);
       notifySync();
       return next;
+    });
+
+    // Record audit log for status change
+    const actionType = status === 'verified'
+      ? 'VERIFIKASI_TPS'
+      : status === 'locked'
+      ? 'KUNCI_TPS'
+      : 'BUKA_KUNCI_TPS';
+
+    addAuditLog({
+      actor_id: actor?.id || null,
+      action: actionType,
+      table_name: 'polling_stations',
+      record_id: tpsId,
+      old_value: { status: prevTps?.status || 'submitted' },
+      new_value: { status },
+      actor_profile: actor ? {
+        id: actor.id || 'usr-temp',
+        full_name: actor.full_name,
+        role: (actor.role === 'admin' ? 'admin' : 'operator') as any,
+        created_at: new Date().toISOString()
+      } : null
     });
 
     if (isSupabaseConfigured) {
@@ -710,7 +875,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         console.error('Failed to update status on Supabase:', err);
       }
     }
-  }, [candidatesList, recalculate]);
+  }, [tpsList, candidatesList, recalculate, addAuditLog]);
 
   // --- OFFICER CRUD METHODS ---
   const addOfficer = useCallback(async (officerData: Omit<OfficerUser, 'id' | 'created_at'>) => {
@@ -820,6 +985,8 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     updateTPSStatusLocal,
     addOfficer,
     updateOfficer,
-    deleteOfficer
+    deleteOfficer,
+    auditLogs,
+    addAuditLog
   };
 }

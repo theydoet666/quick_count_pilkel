@@ -158,6 +158,10 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
     );
   };
 
+  const tableTotalDpt = tpsList.reduce((sum, t) => sum + (Number(t.registered_voters) || 0), 0);
+  const tableTotalDptb = tpsList.reduce((sum, t) => sum + (Number(t.additional_voters) || 0), 0);
+  const tableTotalHakPilih = tableTotalDpt + tableTotalDptb;
+
   return (
     <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/60 overflow-hidden flex flex-col h-full text-slate-200">
       
@@ -181,7 +185,7 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
               )}
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
-              Perolehan suara per banjar (bergulir otomatis)
+              Perolehan per TPS • Basis {tableTotalHakPilih.toLocaleString('id-ID')} Hak Pilih ({tableTotalDpt.toLocaleString('id-ID')} DPT{tableTotalDptb > 0 ? ` + ${tableTotalDptb.toLocaleString('id-ID')} DPTb` : ''})
             </p>
           </div>
         </div>

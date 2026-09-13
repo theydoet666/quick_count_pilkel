@@ -3,6 +3,8 @@ import { useAuth } from './hooks/useAuth';
 import { PublicDashboard } from './pages/PublicDashboard';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { updateDynamicFavicon } from './lib/dynamicFavicon';
+import { DEFAULT_ELECTION_SETTINGS } from './lib/mockData';
 
 export function App() {
   const { user, profile, role, loginWithEmail, logout } = useAuth();
@@ -12,6 +14,45 @@ export function App() {
     if (path.startsWith('/admin')) return 'admin-dashboard';
     return 'public';
   });
+
+  // Sync Favicon on startup and listen to sync updates
+  useEffect(() => {
+    const syncFavicon = () => {
+      try {
+        const savedSettingsStr = localStorage.getItem('belega_election_settings');
+        if (savedSettingsStr) {
+          const settings = JSON.parse(savedSettingsStr);
+          updateDynamicFavicon(settings.logo_url, `Hitung Cepat ${settings.title || 'Pilkel Desa Belega'}`);
+        } else {
+          updateDynamicFavicon(null, DEFAULT_ELECTION_SETTINGS.title);
+        }
+      } catch {
+        updateDynamicFavicon(null);
+      }
+    };
+
+    syncFavicon();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'belega_election_settings') {
+        syncFavicon();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      channel = new BroadcastChannel('belega_quick_count_sync');
+      channel.onmessage = () => {
+        syncFavicon();
+      };
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      if (channel) channel.close();
+    };
+  }, []);
 
   // Handle browser back/forward and route navigation
   useEffect(() => {

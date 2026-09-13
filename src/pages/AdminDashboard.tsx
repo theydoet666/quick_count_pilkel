@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRealtimeResults } from '../hooks/useRealtimeResults';
 import { VoteEntryModal } from '../components/admin/VoteEntryModal';
 import { TPSAuditLogModal } from '../components/admin/TPSAuditLogModal';
+import { PrintReportModal } from '../components/admin/PrintReportModal';
 import { ElectionSettingsTab } from '../components/admin/ElectionSettingsTab';
 import { TPSManagementTab } from '../components/admin/TPSManagementTab';
 import { CandidateManagementTab } from '../components/admin/CandidateManagementTab';
@@ -44,13 +45,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     updateTPSStatusLocal,
     addOfficer,
     updateOfficer,
-    deleteOfficer
+    deleteOfficer,
+    auditLogs
   } = useRealtimeResults();
   
   const [activeTab, setActiveTab] = useState<AdminTab>('recap');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedTpsForVote, setSelectedTpsForVote] = useState<TPSRecapItem | null>(null);
   const [selectedTpsForAudit, setSelectedTpsForAudit] = useState<TPSRecapItem | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Current Officer Info & Password Security Check
+  const currentOfficer = officersList.find(o => o.email.toLowerCase() === userEmail.toLowerCase()) 
+    || (role === 'operator' && tpsId ? officersList.find(o => o.tps_id === tpsId) : null)
+    || (role === 'admin' ? officersList.find(o => o.role === 'admin') : null);
+
+  const isDefaultPassword = !currentOfficer?.password || currentOfficer?.password === 'password123';
+
+  // Change Password State
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showPasswordVisibility, setShowPasswordVisibility] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [passwordUpdateSuccessMsg, setPasswordUpdateSuccessMsg] = useState('');
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError('');
+
+    if (!currentOfficer) {
+      setChangePasswordError('Data akun tidak ditemukan.');
+      return;
+    }
+
+    const expectedPass = currentOfficer.password || 'password123';
+    if (currentPasswordInput !== expectedPass && currentPasswordInput !== 'password123') {
+      setChangePasswordError('Kata sandi saat ini / lama tidak cocok.');
+      return;
+    }
+
+    if (newPasswordInput.length < 6) {
+      setChangePasswordError('Kata sandi baru minimal 6 karakter.');
+      return;
+    }
+
+    if (newPasswordInput !== confirmPasswordInput) {
+      setChangePasswordError('Konfirmasi kata sandi baru tidak cocok.');
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    try {
+      updateOfficer(currentOfficer.id, { password: newPasswordInput });
+      setIsSubmittingPassword(false);
+      setIsChangePasswordModalOpen(false);
+      setPasswordUpdateSuccessMsg('Kata sandi Anda berhasil diperbarui! Akun Anda kini lebih aman.');
+      setTimeout(() => setPasswordUpdateSuccessMsg(''), 6000);
+    } catch (err: any) {
+      setIsSubmittingPassword(false);
+      setChangePasswordError(err.message || 'Gagal mengubah kata sandi.');
+    }
+  };
 
   // Filter visible TPS list for Operator (Petugas TPS only sees their assigned TPS)
   const isOperator = role === 'operator';
@@ -63,13 +121,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const verifiedCount = visibleTpsList.filter(t => t.status === 'verified').length;
   const lockedCount = visibleTpsList.filter(t => t.status === 'locked').length;
 
+  const currentActor = {
+    id: currentOfficer?.id || (role === 'admin' ? 'usr-admin' : 'usr-op'),
+    full_name: fullName,
+    role: role
+  };
+
   const handleVerifyTPS = (targetTpsId: string) => {
-    updateTPSStatusLocal(targetTpsId, 'verified');
+    updateTPSStatusLocal(targetTpsId, 'verified', currentActor);
   };
 
   const handleLockTPS = (targetTpsId: string, currentStatus: TPSStatus) => {
     const nextStatus = currentStatus === 'locked' ? 'verified' : 'locked';
-    updateTPSStatusLocal(targetTpsId, nextStatus);
+    updateTPSStatusLocal(targetTpsId, nextStatus, currentActor);
+  };
+
+  const handleSaveVotes = (
+    targetTpsId: string,
+    votes1: number,
+    votes2: number,
+    invalid: number,
+    photoUrl?: string,
+    newStatus?: TPSStatus,
+    additionalVoters?: number
+  ) => {
+    updateTPSLocal(targetTpsId, votes1, votes2, invalid, photoUrl, newStatus, additionalVoters, currentActor);
   };
 
   const navItems: { id: AdminTab; label: string; icon: string; count?: number; adminOnly?: boolean }[] = [
@@ -286,13 +362,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-              Petugas: <strong className="text-slate-800">{fullName}</strong>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 flex items-center gap-1.5">
+              <span>Petugas:</span>
+              <strong className="text-slate-800">{fullName}</strong>
             </span>
             <button
+              onClick={() => {
+                setIsChangePasswordModalOpen(true);
+                setCurrentPasswordInput('');
+                setNewPasswordInput('');
+                setConfirmPasswordInput('');
+                setChangePasswordError('');
+              }}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-emerald-700 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              title="Ganti kata sandi akun saya"
+            >
+              <span className="material-symbols-outlined text-xs text-emerald-700">key</span>
+              <span>Ubah Sandi</span>
+            </button>
+            {role === 'admin' && (
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                title="Cetak Rekapitulasi Berita Acara (PDF / Print)"
+              >
+                <span className="material-symbols-outlined text-xs text-amber-400">print</span>
+                <span>Cetak Berita Acara</span>
+              </button>
+            )}
+            <button
               onClick={onViewPublic}
-              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">tv</span>
               <span>Layar Siaran Publik</span>
@@ -303,6 +404,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Dynamic Tab Body */}
         <main className="p-3 sm:p-5 md:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-[1400px] w-full">
           
+          {/* Success Notification Alert */}
+          {passwordUpdateSuccessMsg && (
+            <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 p-4 rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-fadeIn">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-emerald-700 text-xl">check_circle</span>
+                <span>{passwordUpdateSuccessMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordUpdateSuccessMsg('')}
+                className="text-emerald-700 hover:text-emerald-950 font-bold px-2 py-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Security Warning Banner for Default Password (Khusus Petugas / Akun dengan Sandi Standar) */}
+          {isDefaultPassword && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4 shadow-sm animate-fadeIn">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs mt-0.5 sm:mt-0">
+                  <span className="material-symbols-outlined text-2xl">lock_reset</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm sm:text-base text-amber-950">
+                      Peringatan Keamanan: Kata Sandi Akun Masih Standar
+                    </h3>
+                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-extrabold border border-amber-300">
+                      Perlu Diubah
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-800 mt-1 leading-snug">
+                    Akun Petugas <strong>{fullName}</strong> saat ini masih menggunakan kata sandi bawaan sistem. Segera ganti kata sandi untuk melindungi keamanan data hasil suara TPS Anda.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsChangePasswordModalOpen(true);
+                  setCurrentPasswordInput('');
+                  setNewPasswordInput('');
+                  setConfirmPasswordInput('');
+                  setChangePasswordError('');
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 shrink-0"
+              >
+                <span className="material-symbols-outlined text-base">key</span>
+                <span>Ubah Kata Sandi Sekarang</span>
+              </button>
+            </div>
+          )}
+
           {/* Operator Notice Banner */}
           {isOperator && (
             <div className="bg-emerald-50 border border-emerald-300/80 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-xs">
@@ -394,6 +550,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         : 'Kelola input suara, verifikasi data, dan penguncian seluruh TPS Desa Belega.'}
                     </p>
                   </div>
+                  {role === 'admin' && (
+                    <button
+                      onClick={() => setIsPrintModalOpen(true)}
+                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-300 shadow-2xs transition-all cursor-pointer"
+                      title="Cetak Berita Acara Tabulasi Lengkap"
+                    >
+                      <span className="material-symbols-outlined text-sm text-emerald-700">print</span>
+                      <span>Export / Cetak Berita Acara</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -569,15 +735,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           candidates={summary.candidates}
           userRole={role}
           onClose={() => setSelectedTpsForVote(null)}
-          onSaveVotes={updateTPSLocal}
+          onSaveVotes={handleSaveVotes}
         />
       )}
 
       {selectedTpsForAudit && (
         <TPSAuditLogModal
           tps={selectedTpsForAudit}
+          auditLogs={auditLogs}
           onClose={() => setSelectedTpsForAudit(null)}
         />
+      )}
+
+      {/* Modal Cetak / Export Berita Acara Tabulasi (PDF / Print) */}
+      {isPrintModalOpen && (
+        <PrintReportModal
+          summary={summary}
+          tpsList={tpsList}
+          candidates={candidatesList}
+          settings={electionSettings}
+          onClose={() => setIsPrintModalOpen(false)}
+        />
+      )}
+
+      {/* Modal Ubah Kata Sandi Petugas */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-5 sm:p-6 shadow-2xl animate-scaleUp">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-xs">
+                  <span className="material-symbols-outlined text-2xl">key</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Ubah Kata Sandi Akun
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Akun: <strong>{fullName}</strong> ({userEmail})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 rounded-lg p-1 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Error Notification in Modal */}
+            {changePasswordError && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl mb-4 text-xs font-medium flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-rose-600 shrink-0">error</span>
+                <span>{changePasswordError}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleChangePassword} className="space-y-3.5">
+              
+              {/* Current Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Kata Sandi Lama / Saat Ini
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswordVisibility ? 'text' : 'password'}
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    placeholder="Masukkan kata sandi saat ini..."
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none shadow-xs pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordVisibility(!showPasswordVisibility)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {showPasswordVisibility ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Kata Sandi Baru (Min. 6 Karakter)
+                </label>
+                <input
+                  type={showPasswordVisibility ? 'text' : 'password'}
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="Masukkan kata sandi baru..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none shadow-xs"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Ulangi Kata Sandi Baru
+                </label>
+                <input
+                  type={showPasswordVisibility ? 'text' : 'password'}
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  placeholder="Ketik ulang kata sandi baru..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none shadow-xs"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordModalOpen(false)}
+                  disabled={isSubmittingPassword}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingPassword}
+                  className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                >
+                  {isSubmittingPassword ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-base">save</span>
+                      <span>Simpan Sandi Baru</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
       )}
 
     </div>

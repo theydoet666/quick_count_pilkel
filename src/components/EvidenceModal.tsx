@@ -53,16 +53,30 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ tps, onClose }) =>
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3.5 border-t border-slate-800 flex justify-between items-center bg-[#0f172a] text-xs">
+        <div className="p-3.5 border-t border-slate-800 flex justify-between items-center bg-[#0f172a] text-xs flex-wrap gap-2">
           <span className="text-slate-400">
-            Suara Sah: <strong className="text-white">{tps.total_valid_votes}</strong> | Tidak Sah: <strong className="text-rose-400">{tps.invalid_votes_count}</strong>
+            Suara Sah: <strong className="text-white">{tps.total_valid_votes.toLocaleString('id-ID')}</strong> | Tidak Sah: <strong className="text-rose-400">{tps.invalid_votes_count.toLocaleString('id-ID')}</strong>
           </span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-md hover:bg-emerald-500 transition-colors shadow-md text-xs"
-          >
-            Tutup
-          </button>
+          <div className="flex items-center gap-2">
+            {tps.evidence_photo_url && (
+              <a
+                href={tps.evidence_photo_url}
+                target="_blank"
+                rel="noreferrer"
+                download={`C-Hasil-${tps.code}.jpg`}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg transition-colors border border-slate-700 flex items-center gap-1 text-xs"
+              >
+                <span className="material-symbols-outlined text-sm">open_in_new</span>
+                <span>Buka Foto Asli</span>
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-md text-xs cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
 
       </div>
