@@ -79,11 +79,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setChangePasswordError('');
 
     if (isSupabaseConfigured) {
-      // Mode produksi: validasi password lama dilakukan oleh Supabase Auth saat login,
-      // bukan di sini. User yang sudah login pasti sudah terautentikasi.
-      // Kita langsung lanjut ke validasi password baru.
+      // Mode produksi: validasi password lama dilakukan oleh Supabase Auth saat login
     } else {
-      // Mode demo: validasi password lama dari localStorage
       if (!currentOfficer) {
         setChangePasswordError('Data akun tidak ditemukan.');
         return;
@@ -108,7 +105,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsSubmittingPassword(true);
     try {
       if (isSupabaseConfigured) {
-        // Mode produksi: ganti password via Supabase Auth (terenkripsi di server)
         const { error } = await supabase.auth.updateUser({ password: newPasswordInput });
         if (error) {
           setIsSubmittingPassword(false);
@@ -116,7 +112,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           return;
         }
       } else {
-        // Mode demo: ganti password di localStorage saja
         if (!currentOfficer) throw new Error('Data akun tidak ditemukan.');
         const expectedPass = currentOfficer.password || '';
         if (currentPasswordInput !== expectedPass) {
@@ -136,10 +131,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Filter visible TPS list for Operator (Petugas TPS only sees their assigned TPS)
+  // 1. Resolve Effective TPS ID for Operator
   const isOperator = role === 'operator';
-  const assignedTps = isOperator && tpsId ? tpsList.find(t => t.polling_station_id === tpsId) : null;
-  const visibleTpsList = isOperator && tpsId ? tpsList.filter(t => t.polling_station_id === tpsId) : tpsList;
+
+  // Resolusi penugasan TPS cerdas:
+  // a. Dari props tpsId (Supabase Profile)
+  // b. Dari data currentOfficer.tps_id
+  // c. Dari pola email (mis. tps03@... cocok otomatis dengan TPS 03 / TPS 3)
+  const matchedTpsByEmail = isOperator ? tpsList.find(t => {
+    const emailNumMatch = userEmail.match(/tps0*(\d+)/i);
+    if (emailNumMatch && emailNumMatch[1]) {
+      const emailNum = parseInt(emailNumMatch[1], 10);
+      const codeNumMatch = t.code.match(/0*(\d+)/);
+      if (codeNumMatch && codeNumMatch[1]) {
+        return emailNum === parseInt(codeNumMatch[1], 10);
+      }
+    }
+    return false;
+  }) : null;
+
+  const effectiveTpsId = tpsId || currentOfficer?.tps_id || matchedTpsByEmail?.polling_station_id || null;
+  const assignedTps = isOperator && effectiveTpsId ? tpsList.find(t => t.polling_station_id === effectiveTpsId) : null;
+
+  // PRINSIP KEAMANAN KETAT:
+  // Operator HANYA boleh melihat TPS miliknya ([assignedTps]).
+  // Jika belum terhubung, tampilkan list kosong [] — JANGAN PERNAH fallback ke seluruh TPS!
+  const visibleTpsList = isOperator 
+    ? (assignedTps ? [assignedTps] : []) 
+    : tpsList;
 
   // Status counts
   const pendingCount = visibleTpsList.filter(t => t.status === 'pending').length;
@@ -171,6 +190,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     newStatus?: TPSStatus,
     additionalVoters?: number
   ) => {
+    // Validasi otorisasi di client: Operator hanya boleh menyimpan ke TPS miliknya
+    if (isOperator && effectiveTpsId && targetTpsId !== effectiveTpsId) {
+      alert('Anda tidak memiliki izin untuk menginput data ke TPS lain.');
+      return;
+    }
     updateTPSLocal(targetTpsId, votes1, votes2, invalid, photoUrl, newStatus, additionalVoters, currentActor);
   };
 
@@ -605,11 +629,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                      {visibleTpsList.map((tps) => {
-                        const addVoters = tps.additional_voters || 0;
-                        const totalVoters = tps.registered_voters + addVoters;
-                        return (
-                          <tr key={tps.polling_station_id} className="hover:bg-slate-50 transition-colors">
+                      {visibleTpsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={5 + summary.candidates.length} className="py-10 text-center text-slate-400">
+                            <span className="material-symbols-outlined text-4xl text-slate-300 block mb-2">how_to_vote</span>
+                            <p className="font-bold text-slate-700 text-sm">Tidak Ada TPS yang Terhubung</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Akun Anda belum dipetakan ke TPS manapun. Silakan hubungi Ketua Panitia.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        visibleTpsList.map((tps) => {
+                          const addVoters = tps.additional_voters || 0;
+                          const totalVoters = tps.registered_voters + addVoters;
+                          return (
+                            <tr key={tps.polling_station_id} className="hover:bg-slate-50 transition-colors">
                             {/* TPS Code & Banjar */}
                             <td className="py-3 px-4">
                               <span className="font-bold text-slate-900 block leading-tight">{tps.code}</span>
@@ -704,7 +737,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                           </tr>
                         );
-                      })}
+                      }))}
                     </tbody>
                   </table>
                 </div>
