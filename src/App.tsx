@@ -8,7 +8,7 @@ import { DEFAULT_ELECTION_SETTINGS } from './lib/mockData';
 import { isSupabaseConfigured } from './lib/supabaseClient';
 
 export function App() {
-  const { user, profile, role, loginWithEmail, logout } = useAuth();
+  const { user, profile, role, loading, loginWithEmail, logout } = useAuth();
   const [currentRoute, setCurrentRoute] = useState<'public' | 'admin-login' | 'admin-dashboard'>(() => {
     const path = window.location.pathname;
     if (path.startsWith('/admin/login')) return 'admin-login';
@@ -137,6 +137,18 @@ export function App() {
     await logout();
     navigateTo('public');
   };
+
+  // Render loading state while session / profile is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white select-none">
+        <div className="flex flex-col items-center gap-3">
+          <span className="w-9 h-9 border-3 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <span className="text-xs font-bold text-slate-300 tracking-wider uppercase">Memverifikasi Sesi...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Render view based on route and auth state
   if (currentRoute === 'admin-login') {
