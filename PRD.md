@@ -1,116 +1,160 @@
 # PRD — Sistem Hitung Cepat (Quick Count) Pemilihan Perbekel Desa Belega 2026
 
-**Versi:** 1.0
-**Tanggal:** 07 September 2026
-**Pemilik produk:** Panitia Pemilihan Perbekel Desa Belega, Kec. Blahbatuh, Kab. Gianyar
-**Status:** Draft untuk pengembangan
+**Versi:** 2.0 (Updated)  
+**Tanggal Pembaruan:** 14 September 2026  
+**Pemilik Produk:** Panitia Pemilihan Perbekel Desa Belega, Kec. Blahbatuh, Kab. Gianyar  
+**Domain Resmi:** `http://pilkel.belega.id/`  
+**Status:** Siap Digunakan / Production Ready  
 
 ---
 
 ## 1. Latar Belakang & Tujuan
 
-Desa Belega mengadakan Pemilihan Perbekel (Kepala Desa) 2026 dengan 2 pasangan calon dan 6 TPS. Panitia membutuhkan sistem hitung cepat (quick count) internal yang menampilkan rekapitulasi suara secara **real-time**, dapat diakses publik dalam dua bentuk tampilan:
+Desa Belega mengadakan Pemilihan Perbekel (Kepala Desa) 2026 dengan 2 pasangan calon di **6 Banjar Dinas** yang terbagi dalam **9 TPS**. Panitia membutuhkan sistem hitung cepat (quick count / real count) internal yang menampilkan rekapitulasi perolehan suara secara **real-time**, transparan, dan dapat diakses publik dalam bentuk:
 
-1. **Layar siaran (TV/proyektor)** — dipasang di lokasi rekapitulasi/balai banjar, tampilan satu layar penuh tanpa scroll.
-2. **Web publik (mobile & desktop)** — diakses warga/saksi lewat HP atau komputer, tampilan responsif.
+1. **Layar Siaran (TV/Proyektor)** — dipasang di lokasi rekapitulasi/balai banjar, tampilan satu layar penuh tanpa scroll (*Full Screen TV Broadcast*).
+2. **Web Publik Responsif (Mobile & Desktop)** — diakses langsung oleh warga, saksi, dan pemantau melalui URL resmi [`http://pilkel.belega.id/`](http://pilkel.belega.id/).
+3. **Panel Khusus Operator & Admin** — input data formulir C-Hasil per TPS secara terotentikasi, disertai bukti foto formulir fisik.
 
-Tujuan produk:
-- Transparansi hasil real count kepada warga secara cepat, sebelum rapat pleno resmi.
-- Mengurangi potensi kesalahpahaman/kecurigaan dengan menampilkan data per TPS secara rinci dan dapat diverifikasi (foto bukti C-Hasil).
-- Mempermudah panitia menginput data dari lapangan tanpa proses manual (rekap kertas → papan tulis).
+**Tujuan Produk:**
+- Transparansi hasil hitung suara kepada seluruh warga secara cepat, akurat, dan dapat dipertanggungjawabkan sebelum rapat pleno resmi.
+- Mengurangi potensi kesalahpahaman atau sengketa dengan menampilkan perolehan suara rinci per TPS (9 TPS) dan lampiran foto C-Hasil yang dapat diverifikasi.
+- Mempermudah panitia dan operator TPS menginput data dari lapangan tanpa rekapitulasi manual di papan tulis.
+- Pengaturan waktu pembukaan perhitungan suara serentak (mis. pukul 13.00 WITA) dengan *Countdown Timer* otomatis.
 
-**Yang bukan tujuan (out of scope):**
-- Sistem ini **bukan** hasil resmi pemilihan. Hasil resmi tetap ditetapkan lewat rapat pleno panitia.
-- Tidak menggantikan proses pemungutan/penghitungan suara fisik di TPS.
-- Tidak menyediakan e-voting atau sistem pemungutan suara digital.
+**Batasan (Out of Scope):**
+- Sistem ini **bukan** pengganti rapat pleno penetapan resmi. Hasil final tetap diputuskan dalam Rapat Pleno Panitia Pemilihan Perbekel Desa Belega.
+- Tidak menyelenggarakan *e-voting* (pemungutan suara tetap dilakukan secara fisik di TPS).
 
 ---
 
-## 2. Target Pengguna
+## 2. Target Pengguna & Hak Akses
 
-| Peran | Kebutuhan |
+| Peran | Kebutuhan & Hak Akses |
 |---|---|
-| **Warga / masyarakat umum** | Melihat hasil rekap terkini, transparan, mudah dipahami, lewat HP atau layar siaran di balai banjar. |
-| **Saksi pasangan calon** | Memverifikasi angka per TPS sesuai dengan formulir C-Hasil yang mereka pegang. |
-| **Operator/Admin panitia** | Input data suara per TPS begitu formulir C-Hasil diterima dari petugas TPS. |
-| **Ketua Panitia / Panwaslukel** | Memantau progres data masuk, memverifikasi/mengunci data sebelum dipublikasikan. |
+| **Warga / Masyarakat Umum** | Melihat hasil rekapitulasi terkini secara live di HP/komputer/layar balai banjar, melihat foto bukti C-Hasil, status progres TPS masuk. |
+| **Saksi Paslon** | Memverifikasi angka perolehan suara dan suara tidak sah di setiap TPS sesuai salinan C-Hasil fisik. |
+| **Operator TPS** | Login per akun TPS untuk input suara sah paslon, suara tidak sah, serta upload foto C-Hasil setelah jam perhitungan suara dibuka. |
+| **Admin Panitia** | Mengelola data master, verifikasi & kunci (lock) data TPS, mengatur waktu buka perhitungan, mengatur nama Ketua Panitia, cetak Berita Acara/Sertifikat Rekapitulasi. |
 
 ---
 
-## 3. Referensi Desain
+## 3. Identitas Visual & Desain
 
-Desain visual mengacu pada eksplorasi yang sudah dibuat di Google Stitch dengan design system **"Balinese Civic Broadcast"**:
-
-- **Palet warna:** latar kertas hangat (`#F3ECDC`), hijau lumut tua sebagai warna otoritas/leading candidate (`#2F4030`), terracotta untuk Paslon 01 (`#9C4A32`), ocher/emas untuk Paslon 02 (`#B8933F`), tinta hitam hangat untuk teks (`#211D17`).
-- **Tipografi:** Playfair Display (headline/judul), IBM Plex Sans (body & label), angka menggunakan tabular figures agar tidak "loncat" saat update real-time.
-- **Bentuk:** sudut membulat minimal (4–8px), tanpa drop shadow tebal, tanpa bentuk pill kecuali indikator status live. Gaya "ledger/administratif", bukan SaaS generik.
-- **Dua mode tampilan:**
-  - *TV broadcast* — satu layar penuh (grid 12 kolom), panel kandidat di kiri (5 kolom), tabel rekap TPS di kanan (7 kolom), header status di atas, ticker/footer di bawah.
-  - *Mobile* — kandidat side-by-side di atas, kartu ringkasan (suara sah/tidak sah/partisipasi), lalu daftar TPS ditumpuk vertikal per kartu.
-
-File referensi desain (hasil export Stitch): `code.html` (2 varian) dan `screen.png` (2 varian) — dipakai sebagai acuan visual dan struktur komponen saat implementasi React + Tailwind.
+- **Lambang Resmi:** Logo lingkaran Panitia Pemilihan Perbekel Desa Belega (Candi Bentar, Kotak Suara, Padi-Kapas, Tiga Cincin Emas, serta semboyan *"Abhipraya Nayaka Dharma Rakshaka Desa"*).
+- **Design System ("Balinese Civic Broadcast"):**
+  - Palet warna: Latar gelap modern (`#0C0F14` / `#161B22`), aksen emas/gold (`#D4AF37`), terracotta untuk Paslon 01 (`#E06D53`), ocher/gold untuk Paslon 02 (`#E5A93C`).
+  - Tipografi: **Playfair Display** (judul & headline formal), **IBM Plex Sans** (body text & tabel angka tabular).
+  - Dialog interaktif: **SweetAlert2** kustom bertema gelap & emas untuk setiap konfirmasi aksi, input, dan notifikasi sistem.
 
 ---
 
-## 4. Ruang Lingkup Fitur (MVP)
+## 4. Ruang Lingkup Fitur (Telah Diimplementasikan)
 
-### 4.1 Halaman Publik
-- **Dashboard utama (responsive)**
-  - Header: logo/lambang desa, nama pemilihan, lokasi, status "X / Y TPS masuk (Z%)", jam pembaruan terakhir.
-  - Panel kandidat: foto, nama, nama wakil (jika ada), nomor urut, total suara, persentase, status "Unggul" / "Peringkat 2", jumlah banjar/TPS di mana unggul.
-  - Kartu ringkasan: total suara sah, suara tidak sah, tingkat partisipasi (dibanding DPT).
-  - Tabel/daftar rekap per TPS: nama TPS/banjar, suara sah, suara tiap kandidat (angka + persentase), selisih suara, status "01 unggul" / "02 unggul".
-  - Badge "Bukan Hasil Resmi" / "Siaran Resmi" (tergantung status verifikasi panitia) selalu terlihat.
-  - Bukti C-Hasil: tombol/link untuk melihat foto formulir hasil penghitungan per TPS.
-- **Mode tampilan:**
-  - Desktop/TV: 1 layar penuh, auto-refresh tanpa reload manual.
-  - Mobile: scroll vertikal, kolom disederhanakan (mis. kolom DPT disembunyikan).
+### 4.1 Halaman Publik & Siaran (`/`)
+- **Header Resmi & Status:**
+  - Logo resmi Desa Belega, judul pemilihan, status TPS masuk (contoh: *9 / 9 TPS Masuk - 100%*), dan waktu pembaruan terakhir.
+  - Indikator status koneksi Supabase Realtime (Online / Offline).
+- **Countdown & Pembatasan Waktu:**
+  - Tampilan overlay hitung mundur (*Countdown Timer*) sebelum waktu perhitungan resmi dibuka (misal: Hari H pukul 13.00 WITA).
+- **Panel Perolehan Suara Pasangan Calon:**
+  - Foto paslon, nomor urut, nama calon & wakil, perolehan total suara, persentase suara sah, status keunggulan (*Unggul / Peringkat 2*), serta rincian keunggulan per banjar.
+- **Kartu Ringkasan Suara:**
+  - Total Suara Masuk, Total Suara Sah, Suara Tidak Sah, dan Tingkat Partisipasi Pemilih (dibanding total DPT seluruh TPS).
+- **Tabel Rekapitulasi 9 TPS (6 Banjar Dinas):**
+  - Rincian per TPS: DPT, Suara Paslon 01, Suara Paslon 02, Suara Tidak Sah, Total Suara Masuk, Selisih Suara, dan Status TPS (*Menunggu / Terverifikasi / Terkunci*).
+  - Modal penampil foto formulir C-Hasil per TPS.
+- **Mode Tampilan:**
+  - *TV Broadcast Mode*: Tampilan 1 layar penuh otomatis tanpa scroll untuk proyektor/TV balai banjar.
+  - *Responsive Mobile Mode*: Tampilan ramah ponsel dengan kartu ringkas per TPS.
 
-### 4.2 Panel Admin (Panitia)
-- Login admin (email/password via Supabase Auth), role: `operator` dan `admin`.
-- Input/edit data suara per TPS per kandidat.
-- Upload foto formulir C-Hasil per TPS.
-- Tandai TPS sebagai "terverifikasi" (dua operator input independen, dibandingkan — jika beda, munculkan flag konflik untuk direview admin).
-- Kunci (lock) TPS setelah diverifikasi agar tidak bisa diubah sembarangan (perlu unlock eksplisit oleh admin + dicatat di log).
-- Log audit: siapa mengubah data apa, kapan (untuk transparansi & investigasi jika ada sengketa).
-- Kelola data master: kandidat (nama, foto, nomor urut, wakil), TPS (nama, lokasi, jumlah DPT).
+### 4.2 Panel Operator TPS (`/operator`)
+- Login khusus operator TPS.
+- Pengecekan jadwal: Operator baru dapat menyimpan data setelah waktu hitung suara resmi dimulai.
+- Input data perolehan suara Paslon 01, Paslon 02, dan Suara Tidak Sah.
+- Unggah foto bukti formulir C-Hasil langsung dari kamera HP atau galeri.
 
-### 4.3 Realtime & Sinkronisasi
-- Perubahan data di admin panel langsung terpantul ke dashboard publik tanpa refresh (via Supabase Realtime subscription).
-- Indikator status koneksi (live/terputus) di header.
+### 4.3 Panel Admin Panitia (`/admin`)
+- Otentikasi aman via Supabase Auth & Role-based Access Control (Admin).
+- **Manajemen & Verifikasi TPS:**
+  - Review input data dan foto C-Hasil dari operator.
+  - Fitur **Verifikasi** dan **Kunci (Lock)** TPS untuk mencegah perubahan tanpa izin.
+  - Fitur **Unlock** dan **Reset Data TPS** dengan konfirmasi SweetAlert2.
+- **Pengaturan Pemilihan (`election_settings`):**
+  - Mengatur jadwal & jam pembukaan perhitungan suara.
+  - Mengatur nama Ketua Panitia Pemilihan untuk pencetakan dokumen.
+  - Mengatur status tayang / publikasi.
+- **Cetak Berita Acara & Rekapitulasi (Print Report Modal):**
+  - Format resmi Berita Acara Sertifikat Hasil Penghitungan Suara siap cetak A4 / PDF.
+  - Otomatis mencantumkan data rekapitulasi 9 TPS, perolehan suara sah, suara tidak sah, total pemilih, dan tanda tangan digital Ketua Panitia Pemilihan.
+- **Log Audit (`audit_logs`):**
+  - Pencatatan riwayat setiap aksi pengubahan, verifikasi, atau penguncian TPS secara kronologis.
+
+### 4.4 Optimasi SEO & Indexing Google
+- **Domain:** `http://pilkel.belega.id/`
+- **Meta Tags Lengkap:** Title, Meta Description, Keywords, Canonical URL, Geo-targeting (Desa Belega, Blahbatuh, Gianyar, Bali).
+- **Open Graph & Twitter Card:** Preview kartu gambar logo resmi saat tautan dibagikan ke media sosial / WhatsApp.
+- **JSON-LD Structured Data Schema:** Schema *WebSite*, *GovernmentOrganization*, dan *Event*.
+- **Peta Situs & Indeks:** Berkas `robots.txt`, `sitemap.xml`, dan `manifest.json`.
 
 ---
 
-## 5. Model Data (Supabase / PostgreSQL)
+## 5. Struktur Data Wilayah & TPS
+
+Desa Belega memiliki **6 Banjar Dinas** dengan total **9 TPS**:
+
+| No | Nama TPS | Banjar Dinas | Alamat / Lokasi |
+|:--:|---|---|---|
+| 1 | TPS 01 | Banjar Belega Kangin | Balai Banjar Belega Kangin |
+| 2 | TPS 02 | Banjar Belega Kangin | Balai Banjar Belega Kangin |
+| 3 | TPS 03 | Banjar Belega Kauh | Balai Banjar Belega Kauh |
+| 4 | TPS 04 | Banjar Kebon | Balai Banjar Kebon |
+| 5 | TPS 05 | Banjar Kebon | Balai Banjar Kebon |
+| 6 | TPS 06 | Banjar Jasri | Balai Banjar Jasri |
+| 7 | TPS 07 | Banjar Jasri | Balai Banjar Jasri |
+| 8 | TPS 08 | Banjar Sala | Balai Banjar Sala |
+| 9 | TPS 09 | Banjar Tegal | Balai Banjar Tegal |
+
+---
+
+## 6. Model Database (Supabase / PostgreSQL)
 
 ```
 elections
 ├── id (uuid, pk)
-├── name                text        -- "Pemilihan Perbekel Desa Belega 2026"
+├── name                 text        -- "Pemilihan Perbekel Desa Belega 2026"
 ├── location             text        -- "Kec. Blahbatuh, Kab. Gianyar"
 ├── status               enum        -- draft | live | closed
 ├── created_at
 
+election_settings
+├── id (uuid, pk)
+├── election_id          fk -> elections
+├── start_time           timestamptz -- Jadwal pembukaan hitung suara (13.00 WITA)
+├── ketua_panitia_name   text        -- Nama Ketua Panitia untuk Berita Acara
+├── is_active            boolean
+├── updated_at
+
 candidates
 ├── id (uuid, pk)
 ├── election_id          fk -> elections
-├── number               int          -- nomor urut paslon (1, 2, ...)
-├── name                 text
-├── vice_name            text nullable
+├── number               int         -- 1 atau 2
+├── name                 text        -- Nama Calon Perbekel
+├── vice_name            text        -- Nama Wakil (opsional)
 ├── photo_url            text
-├── color_hex            text         -- warna identitas di UI
+├── color_hex            text
 ├── created_at
 
-polling_stations (tps)
+polling_stations (9 TPS)
 ├── id (uuid, pk)
 ├── election_id          fk -> elections
-├── code                 text         -- "TPS 01"
-├── banjar_name          text         -- "Balai Banjar Belega Kangin"
-├── registered_voters    int          -- DPT
-├── status               enum         -- pending | submitted | verified | locked | disputed
-├── evidence_photo_url   text nullable
-├── verified_by          fk -> profiles, nullable
-├── verified_at          timestamptz nullable
+├── code                 text        -- "TPS 01" s/d "TPS 09"
+├── banjar_name          text        -- Nama Banjar Dinas
+├── registered_voters    int         -- DPT
+├── status               enum        -- pending | submitted | verified | locked | disputed
+├── evidence_photo_url   text
+├── verified_by          fk -> profiles
+├── verified_at          timestamptz
 ├── created_at, updated_at
 
 vote_results
@@ -131,13 +175,14 @@ invalid_votes
 profiles
 ├── id (uuid, pk, = auth.users.id)
 ├── full_name            text
-├── role                 enum         -- admin | operator | viewer
+├── role                 enum        -- admin | operator | viewer
+├── assigned_tps_id      fk -> polling_stations (nullable)
 ├── created_at
 
 audit_logs
 ├── id (uuid, pk)
 ├── actor_id             fk -> profiles
-├── action               text         -- "update_votes", "verify_tps", "lock_tps", ...
+├── action               text        -- "update_votes", "verify_tps", "lock_tps", dll
 ├── table_name           text
 ├── record_id            uuid
 ├── old_value            jsonb
@@ -145,66 +190,30 @@ audit_logs
 ├── created_at
 ```
 
-**Perhitungan turunan (dilakukan di view/RPC, bukan disimpan manual):**
-- `total_votes_per_candidate` = SUM(votes) semua TPS per kandidat.
-- `total_valid_votes` = SUM semua votes semua kandidat semua TPS.
-- `participation_rate` = total_valid_votes / SUM(registered_voters).
-- `tps_reported_ratio` = COUNT(polling_stations WHERE status IN (verified, locked)) / COUNT(all polling_stations).
-- `leading_candidate` dihitung on-the-fly di frontend/view, bukan field statis.
-
 ---
 
-## 6. Alur Kerja Utama (User Flow)
+## 7. Kebutuhan Non-Fungsional & Kualitas
 
-1. Petugas TPS menyerahkan formulir C-Hasil (fisik/foto) ke sekretariat panitia.
-2. Operator login ke panel admin → pilih TPS → input jumlah suara tiap kandidat + suara tidak sah → upload foto formulir → simpan (status `submitted`).
-3. Operator kedua (independen) melakukan input yang sama untuk TPS yang sama.
-4. Sistem membandingkan dua input; jika sama → admin bisa langsung set status `verified`. Jika beda → status `disputed`, muncul notifikasi ke admin untuk pengecekan manual.
-5. Setelah `verified`, admin bisa `lock` data TPS tersebut (mencegah perubahan tanpa jejak audit).
-6. Dashboard publik (TV & mobile) otomatis menampilkan data begitu status TPS `verified` atau `locked` (data `submitted` belum tampil ke publik, untuk mencegah data mentah yang belum tervalidasi tersebar).
-7. Setelah 6 TPS selesai diverifikasi, badge status berubah menjadi "Hasil Sementara Resmi Panitia" sesuai keputusan panitia (tetap dengan disclaimer bukan hasil pleno resmi final).
-
----
-
-## 7. Kebutuhan Non-Fungsional
-
-| Aspek | Kebutuhan |
+| Aspek | Target & Realisasi |
 |---|---|
-| **Ketersediaan** | Dashboard publik harus tetap bisa diakses meski traffic naik saat malam pemilihan (target ringan, statis di CDN + Supabase sebagai satu-satunya sumber data dinamis). |
-| **Realtime** | Update data ke publik ≤ 3 detik setelah admin menyimpan perubahan (Supabase Realtime channel). |
-| **Keamanan** | Row Level Security (RLS) aktif: publik hanya boleh `SELECT` data dengan status `verified`/`locked`; hanya `operator`/`admin` yang bisa `INSERT`/`UPDATE`; hanya `admin` yang bisa `lock`/`unlock` dan mengubah data master. |
-| **Auditability** | Setiap perubahan data suara & status TPS tercatat di `audit_logs` (siapa, kapan, nilai lama→baru). |
-| **Responsif** | Tampilan TV (desktop, ≥1024px, satu layar tanpa scroll) dan mobile (<768px, scroll vertikal, kolom disederhanakan) sesuai desain Stitch. |
-| **Aksesibilitas** | Kontras warna memenuhi WCAG AA, ukuran font angka tetap terbaca dari jarak (untuk layar TV). |
-| **Performa** | First load < 2 detik di koneksi 4G desa; gunakan caching read query publik. |
+| **Ketersediaan** | Aplikasi frontend berbasis SPA cepat (Vite + React) siap di-host di cPanel / VPS / Netlify / Vercel dengan integrasi langsung ke Supabase Cloud. |
+| **Realtime** | Latensi sinkronisasi data antar admin, operator, dan publik < 1 detik via *Supabase Realtime Channel*. |
+| **Keamanan Data** | Row Level Security (RLS) aktif: publik hanya dapat membaca data yang berstatus terverifikasi/terkunci; penulisan data memerlukan autentikasi operator/admin. |
+| **Pencegahan Kunci Windows** | Pengabaian file arsip `dist.zip` pada file-watcher agar proses *hot-reload* dev server berjalan mulus tanpa kendala `EBUSY`. |
+| **SEO & Indeks Google** | Memenuhi standar Google Search Console dengan robots.txt, sitemap XML, dan skema JSON-LD. |
 
 ---
 
-## 8. Metrik Keberhasilan
+## 8. Status Pengembangan & Verifikasi
 
-- 100% dari 6 TPS berhasil diinput dan diverifikasi dalam waktu ≤ 2 jam setelah TPS terakhir tutup.
-- Tidak ada perbedaan data pada dashboard publik dibanding formulir C-Hasil resmi yang tervalidasi (0 sengketa data yang tidak terselesaikan).
-- Dashboard dapat diakses tanpa error oleh warga di HP dan layar TV/proyektor selama malam penghitungan.
-
----
-
-## 9. Rencana Rilis (MVP → Next)
-
-**MVP (harus ada sebelum hari-H):**
-- Dashboard publik (TV + mobile) menampilkan data dari Supabase.
-- Panel admin: login, input suara per TPS, upload bukti foto, verifikasi & lock.
-- Realtime sync dashboard publik.
-- RLS dasar (publik read-only data terverifikasi; admin/operator write).
-
-**Next (setelah hari-H / pemilihan berikutnya):**
-- Dual-input independen otomatis dengan deteksi selisih (saat ini bisa manual dulu).
-- Export hasil ke PDF/rekap resmi untuk rapat pleno.
-- Notifikasi (WhatsApp/Telegram bot) ke panitia saat semua TPS selesai.
-- Riwayat/log publik yang bisa dilihat warga (transparansi penuh perubahan data, tanpa expose identitas operator).
-
----
-
-## 10. Lampiran
-
-- Desain referensi (Stitch export): `hitung_cepat_pilkel_belega_2026_tv_broadcast_simpel/` dan `hitung_cepat_pilkel_belega_2026_single_screen_mobile/` (code.html + screen.png).
-- Design system: `balinese_civic_broadcast/DESIGN.md` (warna, tipografi, spacing, komponen).
+- [x] Dashboard Publik (Desktop/TV & Mobile)
+- [x] Desain Bertema Balinese Civic Broadcast
+- [x] Input Data Suara & Bukti C-Hasil oleh Operator TPS
+- [x] Sinkronisasi Realtime Supabase
+- [x] Fitur Verifikasi & Penguncian (Lock) TPS oleh Admin
+- [x] Dialog Interaktif & Konfirmasi dengan SweetAlert2
+- [x] Pengaturan Jadwal Jam Hitung Suara & Countdown Timer
+- [x] Sinkronisasi 6 Banjar Dinas dengan 9 TPS Resmi
+- [x] Fitur Cetak Berita Acara / Laporan Rekapitulasi Suara (PDF/Print)
+- [x] Integrasi Logo Resmi Desa Belega & Favicon SVG
+- [x] Optimasi SEO Lengkap untuk Domain `http://pilkel.belega.id/`
