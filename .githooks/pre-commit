@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-commit hook to prevent accidental secret and .env leakage
+
+# 1. Block staging of .env files (except .env.example)
+STAGED_ENV_FILES=$(git diff --cached --name-only | grep -E '(^|/)\.env(\..+)?$' | grep -v '\.env\.example$')
+if [ -n "$STAGED_ENV_FILES" ]; then
+    echo "❌ [SECURITY ERROR] Percobaan commit file environment terdeteksi:"
+    echo "$STAGED_ENV_FILES"
+    echo ""
+    echo "⚠️  File .env berisi secret/kredensial dan dilarang masuk ke Git repository!"
+    echo "👉 Jalankan: git reset HEAD <file> untuk unstage file tersebut."
+    exit 1
+fi
+
+# 2. Block potential Supabase JWT/API keys or service_role strings in staged diffs
+LEAKED_KEYS=$(git diff --cached -S"sbp_" -S"service_role" --name-only | grep -v '\.example' | grep -v 'migrations/' | grep -v 'pre-commit')
+if [ -n "$LEAKED_KEYS" ]; then
+    # Double check if actual secret strings are in added lines
+    if git diff --cached | grep -E '^\+[^+].*(sbp_[a-zA-Z0-9_-]{20,}|service_role.*eyJhbGciOi)' > /dev/null; then
+        echo "❌ [SECURITY ERROR] Potensi Supabase API Key / Service Role terdeteksi pada baris baru yang akan di-commit!"
+        echo "File terkait: $LEAKED_KEYS"
+        echo "👉 Harap periksa kembali perubahan Anda dan gunakan environment variable."
+        exit 1
+    fi
+fi
+
+exit 0

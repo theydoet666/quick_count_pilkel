@@ -109,10 +109,20 @@ export function useAuth() {
     }
   };
 
-  // Login mode demo (hanya aktif saat isSupabaseConfigured = false)
-  // CATATAN: Mode ini TIDAK boleh digunakan di environment produksi.
-  // Seluruh validasi hanya di sisi client — tidak ada keamanan server-side.
+  // ==========================================================================
+  // PERINGATAN KEAMANAN KRITIS (MODE DEMO OFFLINE):
+  // Fungsi loginWithMock() di bawah ini HANYA boleh aktif pada mode pengembangan
+  // lokal (DEV). Mode ini TIDAK BOLEH PERNAH ter-deploy ke lingkungan produksi!
+  // Alasan: Seluruh autentikasi & otorisasi berjalan di sisi client/browser tanpa
+  // validasi kriptografis token sesi server, tanpa hash password terenkripsi,
+  // dan tanpa perlindungan Row Level Security (RLS) PostgreSQL.
+  // ==========================================================================
   const loginWithMock = (email: string, password: string): { error: { message: string } | null } => {
+    // Mode demo dilarang keras aktif pada build produksi
+    if (import.meta.env.PROD) {
+      return { error: { message: 'Konfigurasi Supabase tidak ditemukan. Hubungi administrator.' } };
+    }
+
     // Cari officer dari daftar mock
     const savedOfficers = localStorage.getItem('belega_officers');
     const officersList: OfficerUser[] = savedOfficers ? JSON.parse(savedOfficers) : MOCK_OFFICERS;
@@ -124,8 +134,13 @@ export function useAuth() {
       return { error: { message: 'Email tidak terdaftar dalam sistem demo.' } };
     }
 
-    // Di mode demo, password di-set saat pembuatan akun dan tidak ada backdoor universal
-    if (foundOfficer.password && password !== foundOfficer.password) {
+    // TOLAK BY DEFAULT: Jika password tidak diset (undefined/kosong), jangan pernah izinkan bypass login
+    if (!foundOfficer.password) {
+      return { error: { message: 'Akun demo ini belum memiliki password, hubungi admin' } };
+    }
+
+    // Validasi kecocokan password
+    if (password !== foundOfficer.password) {
       return { error: { message: 'Kata sandi yang Anda masukkan salah.' } };
     }
 

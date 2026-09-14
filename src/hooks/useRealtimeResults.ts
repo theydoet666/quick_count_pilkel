@@ -566,6 +566,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       created_at: new Date().toISOString()
     };
 
+    // Simpan ke localStorage sebagai cache tampilan (bukan sumber kebenaran)
     setAuditLogs(prev => {
       const updated = [newLog, ...prev];
       localStorage.setItem('belega_audit_logs', JSON.stringify(updated));
@@ -574,17 +575,22 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('audit_logs').insert({
-          actor_id: logData.actor_id,
-          action: logData.action,
-          table_name: logData.table_name,
-          record_id: logData.record_id,
-          old_value: logData.old_value,
-          new_value: logData.new_value,
-          created_at: newLog.created_at
+        // Gunakan RPC server-side log_audit_event (SECURITY DEFINER)
+        // actor_id ditentukan di server dari auth.uid(), bukan dikirim dari client
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('log_audit_event', {
+          p_action: logData.action,
+          p_table_name: logData.table_name,
+          p_record_id: logData.record_id,
+          p_old_value: logData.old_value,
+          p_new_value: logData.new_value
         });
+
+        if (rpcErr || (rpcResult && rpcResult.success === false)) {
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          console.error('❌ Gagal mencatat audit log ke Supabase (RPC log_audit_event):', errMsg);
+        }
       } catch (err) {
-        console.warn('Supabase addAuditLog fallback:', err);
+        console.error('❌ Terjadi kesalahan fatal saat memanggil log_audit_event RPC:', err);
       }
     }
   }, []);

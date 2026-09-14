@@ -36,7 +36,9 @@ Isi variabel dengan kredensial proyek Supabase Anda:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
-> *Catatan: Jika Supabase belum dihubungkan, aplikasi akan otomatis berjalan dalam mode fallback offline/standalone dengan data 6 TPS Desa Belega.*
+
+> ⚠️ **PERINGATAN KEAMANAN PRODUKSI:**
+> Mode demo offline (`isSupabaseConfigured = false`) **HANYA** diperbolehkan untuk pengembangan lokal (`npm run dev`). Di lingkungan produksi (`import.meta.env.PROD`), aplikasi akan memblokir akses jika variabel Supabase tidak dikonfigurasi. Mode demo tidak boleh ter-deploy ke server publik karena seluruh verifikasi hanya di sisi browser (tanpa proteksi hash password kriptografis & tanpa Row Level Security PostgreSQL).
 
 ### 4. Jalankan Server Dev Lokal
 ```bash
@@ -50,12 +52,11 @@ Buka browser di `http://localhost:5173`.
 
 1. Buka Dashboard Supabase ([supabase.com](https://supabase.com)) → Buat proyek baru.
 2. Buka **SQL Editor** pada Dashboard Supabase Anda.
-3. Jalankan SQL migration dari file `supabase/migrations/20260907000000_init_schema.sql` dan `supabase/migrations/20260911000000_add_additional_voters.sql`:
-   - Membuat 7 Tabel (`elections`, `candidates`, `polling_stations`, `vote_results`, `invalid_votes`, `profiles`, `audit_logs`).
-   - Membuat PostgreSQL Trigger Function `log_audit_change()`.
-   - Mengaktifkan Row Level Security (RLS) & Policies.
-   - Membuat RPC Function `get_election_summary()` dan `get_tps_recap()`.
-   - Membuat Storage Bucket `evidence-photos` dan `candidate-photos`.
+3. Jalankan SQL migration secara berurutan:
+   - `supabase/migrations/20260907000000_init_schema.sql` (Skema awal & tabel)
+   - `supabase/migrations/20260911000000_add_additional_voters.sql` (DPT Tambahan / DPTb)
+   - `supabase/migrations/20260914000001_fix_rls_security.sql` (Perbaikan RLS, isolasi hak akses operator, & RPC server-side)
+   - `supabase/migrations/20260914000002_fix_audit_log_rpc.sql` (RPC `log_audit_event` dengan verifikasi identitas `auth.uid()`)
 4. (Opsional) Jalankan SQL seed data dari file `supabase/seed.sql` untuk mengunggah paslon dan data TPS Desa Belega awal.
 
 ---
