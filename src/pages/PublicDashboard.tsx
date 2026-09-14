@@ -36,12 +36,8 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
     : false;
   const isCountingActive = Boolean(electionSettings.is_counting_started) || isPastSchedule;
 
-  // Calculate unique Banjar Dinas count dynamically from TPS list data
-  const banjarCount = new Set(
-    tpsList
-      .map(t => t.banjar_name?.trim())
-      .filter(name => Boolean(name && name.length > 0))
-  ).size || (tpsList.length > 0 ? tpsList.length : 6);
+  // Jumlah resmi Banjar Dinas di Desa Belega adalah 6 Banjar Dinas dengan total 9 TPS
+  const banjarCount = 6;
 
   // Calculate DPT and Hak Pilih totals directly from active TPS list (database sync)
   const totalDpt = tpsList.reduce((sum, t) => sum + (Number(t.registered_voters) || 0), 0);
