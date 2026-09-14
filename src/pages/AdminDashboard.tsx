@@ -9,6 +9,7 @@ import { TPSManagementTab } from '../components/admin/TPSManagementTab';
 import { CandidateManagementTab } from '../components/admin/CandidateManagementTab';
 import { OfficerManagementTab } from '../components/admin/OfficerManagementTab';
 import { TPSRecapItem, UserRole, TPSStatus } from '../types/database.types';
+import { showAlert } from '../lib/alerts';
 
 interface AdminDashboardProps {
   userEmail: string;
@@ -109,6 +110,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         if (error) {
           setIsSubmittingPassword(false);
           setChangePasswordError(error.message || 'Gagal mengubah kata sandi.');
+          showAlert.error('Gagal Mengubah Sandi', error.message || 'Terjadi kesalahan pada server.');
           return;
         }
       } else {
@@ -124,10 +126,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setIsSubmittingPassword(false);
       setIsChangePasswordModalOpen(false);
       setPasswordUpdateSuccessMsg('Kata sandi Anda berhasil diperbarui! Akun Anda kini lebih aman.');
+      showAlert.success('Kata Sandi Diperbarui!', 'Kata sandi akun Anda telah berhasil diperbarui dan kini lebih aman.');
       setTimeout(() => setPasswordUpdateSuccessMsg(''), 6000);
     } catch (err: any) {
       setIsSubmittingPassword(false);
       setChangePasswordError(err.message || 'Gagal mengubah kata sandi.');
+      showAlert.error('Gagal Mengubah Sandi', err.message || 'Terjadi kesalahan.');
     }
   };
 
@@ -172,13 +176,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     role: role
   };
 
-  const handleVerifyTPS = (targetTpsId: string) => {
+  const handleVerifyTPS = async (targetTpsId: string) => {
+    const tps = tpsList.find(t => t.polling_station_id === targetTpsId);
+    const confirmed = await showAlert.confirm({
+      title: 'Verifikasi Hasil Suara?',
+      text: `Apakah Anda yakin ingin memverifikasi data ${tps?.code || 'TPS'} (${tps?.banjar_name || ''})? Data ini akan langsung ditayangkan di Layar Siaran Publik.`,
+      confirmButtonText: 'Ya, Verifikasi Sekarang',
+      icon: 'question',
+      confirmButtonClass: 'px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+    });
+    if (!confirmed) return;
     updateTPSStatusLocal(targetTpsId, 'verified', currentActor);
+    showAlert.toast(`Data ${tps?.code || 'TPS'} berhasil diverifikasi!`, 'success');
   };
 
-  const handleLockTPS = (targetTpsId: string, currentStatus: TPSStatus) => {
+  const handleLockTPS = async (targetTpsId: string, currentStatus: TPSStatus) => {
+    const tps = tpsList.find(t => t.polling_station_id === targetTpsId);
+    const isLocking = currentStatus !== 'locked';
+    const confirmed = await showAlert.confirm({
+      title: isLocking ? 'Kunci Akses TPS?' : 'Buka Kunci TPS?',
+      text: isLocking 
+        ? `Setelah dikunci, Petugas Operator tidak dapat mengubah atau menginput ulang perolehan suara ${tps?.code || 'TPS'} lagi.`
+        : `Membuka kunci akan mengizinkan Petugas Operator untuk mengubah kembali perolehan suara ${tps?.code || 'TPS'}.`,
+      confirmButtonText: isLocking ? 'Ya, Kunci TPS' : 'Buka Kunci',
+      icon: isLocking ? 'warning' : 'question',
+      confirmButtonClass: isLocking
+        ? 'px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+        : 'px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+    });
+    if (!confirmed) return;
     const nextStatus = currentStatus === 'locked' ? 'verified' : 'locked';
     updateTPSStatusLocal(targetTpsId, nextStatus, currentActor);
+    showAlert.toast(isLocking ? `${tps?.code || 'TPS'} berhasil dikunci.` : `Kunci ${tps?.code || 'TPS'} berhasil dibuka.`, 'info');
   };
 
   const handleSaveVotes = (
@@ -192,10 +221,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   ) => {
     // Validasi otorisasi di client: Operator hanya boleh menyimpan ke TPS miliknya
     if (isOperator && effectiveTpsId && targetTpsId !== effectiveTpsId) {
-      alert('Anda tidak memiliki izin untuk menginput data ke TPS lain.');
+      showAlert.error('Akses Ditolak', 'Anda tidak memiliki izin untuk menginput data ke TPS lain.');
       return;
     }
     updateTPSLocal(targetTpsId, votes1, votes2, invalid, photoUrl, newStatus, additionalVoters, currentActor);
+    const tps = tpsList.find(t => t.polling_station_id === targetTpsId);
+    showAlert.toast(`Data suara ${tps?.code || 'TPS'} berhasil disimpan!`, 'success');
+  };
+
+  const handleLogoutConfirm = async () => {
+    const confirmed = await showAlert.confirm({
+      title: 'Keluar dari Panel?',
+      text: 'Apakah Anda yakin ingin keluar dari sesi akun ini?',
+      confirmButtonText: 'Ya, Keluar Sesi',
+      cancelButtonText: 'Batal',
+      icon: 'question',
+      confirmButtonClass: 'px-4 py-2 bg-rose-700 hover:bg-rose-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+    });
+    if (confirmed) {
+      onLogout();
+    }
   };
 
   const navItems: { id: AdminTab; label: string; icon: string; count?: number; adminOnly?: boolean }[] = [

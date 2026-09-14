@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ElectionSettings } from '../../types/database.types';
+import { showAlert } from '../../lib/alerts';
 
 interface ElectionSettingsTabProps {
   settings: ElectionSettings;
@@ -34,7 +35,7 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file logo maksimal 2MB.');
+      showAlert.warning('Ukuran File Terlalu Besar', 'Ukuran file logo maksimal adalah 2MB.');
       return;
     }
 
@@ -52,6 +53,7 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    showAlert.toast('Logo direset ke logo bawaan.', 'info');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -65,6 +67,7 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
       ticker_speed: tickerSpeed
     });
     setSaveSuccess(true);
+    showAlert.success('Pengaturan Disimpan!', 'Judul siaran, logo, dan teks berjalan berhasil diperbarui.');
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 

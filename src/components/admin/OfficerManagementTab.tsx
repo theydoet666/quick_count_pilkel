@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { OfficerUser, TPSRecapItem, UserRole } from '../../types/database.types';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { showAlert } from '../../lib/alerts';
 
 interface OfficerManagementTabProps {
   officersList: OfficerUser[];
@@ -94,7 +95,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (role === 'operator' && !tpsId) {
-      alert('Silakan pilih penugasan TPS untuk Petugas TPS.');
+      showAlert.warning('Penugasan Belum Dipilih', 'Silakan tentukan TPS penugasan untuk Petugas Operator.');
       return;
     }
 
@@ -109,6 +110,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
         role,
         tps_id: finalTpsId
       });
+      showAlert.toast(`Data pengguna ${fullName} berhasil diperbarui!`, 'success');
     } else {
       onAddOfficer({
         full_name: fullName,
@@ -118,15 +120,24 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
         role,
         tps_id: finalTpsId
       });
+      showAlert.toast(`Akun petugas ${fullName} berhasil ditambahkan!`, 'success');
     }
     setIsModalOpen(false);
   };
 
-  const handleDelete = (officer: OfficerUser) => {
+  const handleDelete = async (officer: OfficerUser) => {
     const tps = tpsList.find(t => t.polling_station_id === officer.tps_id);
     const label = officer.role === 'admin' || !officer.tps_id ? 'Ketua Admin' : (tps?.code || 'Petugas TPS');
-    if (confirm(`Apakah Anda yakin ingin menghapus akun ${officer.full_name} (${label})?`)) {
+    const confirmed = await showAlert.confirm({
+      title: 'Hapus Akun Pengguna?',
+      text: `Apakah Anda yakin ingin menghapus akun ${officer.full_name} (${label})? Akun ini tidak akan dapat login lagi.`,
+      confirmButtonText: 'Ya, Hapus Akun',
+      cancelButtonText: 'Batal',
+      icon: 'warning'
+    });
+    if (confirmed) {
       onDeleteOfficer(officer.id);
+      showAlert.toast(`Akun ${officer.full_name} berhasil dihapus.`, 'info');
     }
   };
 

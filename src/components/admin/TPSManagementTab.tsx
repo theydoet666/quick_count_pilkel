@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TPSRecapItem } from '../../types/database.types';
+import { showAlert } from '../../lib/alerts';
 
 interface TPSManagementTabProps {
   tpsList: TPSRecapItem[];
@@ -53,6 +54,7 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
         registered_voters: registeredVoters,
         additional_voters: additionalVoters
       });
+      showAlert.toast(`Data ${code} (${banjarName}) berhasil diperbarui!`, 'success');
     } else {
       onAddTPS({
         code,
@@ -60,13 +62,22 @@ export const TPSManagementTab: React.FC<TPSManagementTabProps> = ({
         registered_voters: registeredVoters,
         additional_voters: additionalVoters
       });
+      showAlert.toast(`${code} (${banjarName}) berhasil ditambahkan!`, 'success');
     }
     setIsModalOpen(false);
   };
 
-  const handleDelete = (tps: TPSRecapItem) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus ${tps.code} (${tps.banjar_name})? Data perolehan suara di TPS ini juga akan terhapus.`)) {
+  const handleDelete = async (tps: TPSRecapItem) => {
+    const confirmed = await showAlert.confirm({
+      title: `Hapus ${tps.code}?`,
+      text: `Apakah Anda yakin ingin menghapus ${tps.code} (${tps.banjar_name})? Seluruh data perolehan suara di TPS ini juga akan terhapus.`,
+      confirmButtonText: 'Ya, Hapus TPS',
+      cancelButtonText: 'Batal',
+      icon: 'warning'
+    });
+    if (confirmed) {
       onDeleteTPS(tps.polling_station_id);
+      showAlert.toast(`${tps.code} berhasil dihapus.`, 'info');
     }
   };
 

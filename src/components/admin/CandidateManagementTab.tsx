@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Candidate } from '../../types/database.types';
+import { showAlert } from '../../lib/alerts';
 
 interface CandidateManagementTabProps {
   candidates: Candidate[];
@@ -58,7 +59,7 @@ export const CandidateManagementTab: React.FC<CandidateManagementTabProps> = ({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran foto maksimal 2MB.');
+      showAlert.warning('Ukuran Foto Terlalu Besar', 'Ukuran berkas foto maksimal adalah 2MB.');
       return;
     }
 
@@ -81,6 +82,7 @@ export const CandidateManagementTab: React.FC<CandidateManagementTabProps> = ({
         photo_url: photoUrl,
         color_hex: colorHex
       });
+      showAlert.toast(`Data Paslon 0${number} berhasil diperbarui!`, 'success');
     } else {
       onAddCandidate({
         number,
@@ -89,13 +91,22 @@ export const CandidateManagementTab: React.FC<CandidateManagementTabProps> = ({
         photo_url: photoUrl,
         color_hex: colorHex
       });
+      showAlert.toast(`Paslon 0${number} berhasil ditambahkan!`, 'success');
     }
     setIsModalOpen(false);
   };
 
-  const handleDelete = (candidate: Candidate) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus Paslon 0${candidate.number} (${candidate.name})?`)) {
+  const handleDelete = async (candidate: Candidate) => {
+    const confirmed = await showAlert.confirm({
+      title: `Hapus Paslon 0${candidate.number}?`,
+      text: `Apakah Anda yakin ingin menghapus pasangan calon ${candidate.name}? Data perolehan suara paslon ini juga akan terhapus.`,
+      confirmButtonText: 'Ya, Hapus Paslon',
+      cancelButtonText: 'Batal',
+      icon: 'warning'
+    });
+    if (confirmed) {
       onDeleteCandidate(candidate.id);
+      showAlert.toast(`Paslon 0${candidate.number} berhasil dihapus.`, 'info');
     }
   };
 

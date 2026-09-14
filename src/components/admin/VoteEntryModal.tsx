@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TPSRecapItem, CandidateSummary, TPSStatus } from '../../types/database.types';
+import { showAlert } from '../../lib/alerts';
 
 interface VoteEntryModalProps {
   tps: TPSRecapItem | null;
@@ -136,7 +137,9 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
 
   const handleSave = (targetStatus?: TPSStatus) => {
     if (isExceeded) {
-      setErrorMsg(`Total suara (${totalEnteredVotes}) melebihi total hak pilih (${totalHakPilih} = ${dptPokok} DPT + ${dptTambahan} DPT Tambahan)! Periksa kembali angka.`);
+      const msg = `Total suara (${totalEnteredVotes}) melebihi total hak pilih (${totalHakPilih} = ${dptPokok} DPT + ${dptTambahan} DPT Tambahan)! Periksa kembali rincian angka suara.`;
+      setErrorMsg(msg);
+      showAlert.warning('Periksa Total Suara', msg);
       return;
     }
 

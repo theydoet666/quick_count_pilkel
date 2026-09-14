@@ -3,6 +3,7 @@ import { MOCK_OFFICERS, MOCK_TPS_RECAP, DEFAULT_ELECTION_SETTINGS } from '../lib
 import { OfficerUser, TPSRecapItem, ElectionSettings } from '../types/database.types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { updateDynamicFavicon } from '../lib/dynamicFavicon';
+import { showAlert } from '../lib/alerts';
 
 interface AdminLoginProps {
   onLogin: (
@@ -150,6 +151,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
 
     if (!password) {
       setErrorMsg('Silakan masukkan kata sandi akun.');
+      showAlert.warning('Kata Sandi Kosong', 'Silakan masukkan kata sandi akun.');
       return;
     }
 
@@ -158,6 +160,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
     if (loginMode === 'select') {
       if (!selectedOfficer) {
         setErrorMsg('Silakan pilih akun petugas.');
+        showAlert.warning('Pilih Akun', 'Silakan pilih akun petugas terlebih dahulu.');
         setIsSubmitting(false);
         return;
       }
@@ -169,11 +172,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
 
       setIsSubmitting(false);
       if (res.error) {
-        setErrorMsg(res.error.message || 'Kata sandi salah. Silakan periksa kembali.');
+        const errorText = res.error.message || 'Kata sandi salah. Silakan periksa kembali.';
+        setErrorMsg(errorText);
+        showAlert.error('Gagal Masuk', errorText);
       }
     } else {
       if (!manualEmail) {
         setErrorMsg('Email wajib diisi.');
+        showAlert.warning('Email Kosong', 'Email akun panitia wajib diisi.');
         setIsSubmitting(false);
         return;
       }
@@ -181,7 +187,9 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
       const res = await onLogin(manualEmail, password);
       setIsSubmitting(false);
       if (res.error) {
-        setErrorMsg(res.error.message || 'Login gagal. Periksa kembali email dan kata sandi.');
+        const errorText = res.error.message || 'Login gagal. Periksa kembali email dan kata sandi.';
+        setErrorMsg(errorText);
+        showAlert.error('Gagal Masuk', errorText);
       }
     }
   };
