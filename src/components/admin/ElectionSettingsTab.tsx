@@ -17,6 +17,11 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
   const [flashCountText, setFlashCountText] = useState(settings.flash_count_text || 'FLASH COUNT');
   const [tickerSpeed, setTickerSpeed] = useState<number>(settings.ticker_speed || 30);
   const [logoUrl, setLogoUrl] = useState<string | null>(settings.logo_url);
+  const [countingStartTime, setCountingStartTime] = useState<string>(settings.counting_start_time || '2026-09-14T13:00');
+  const [isCountingStarted, setIsCountingStarted] = useState<boolean>(Boolean(settings.is_counting_started));
+  const [countingNotice, setCountingNotice] = useState<string>(
+    settings.counting_notice || 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
+  );
   const [saveSuccess, setSaveSuccess] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +33,15 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
     setFlashCountText(settings.flash_count_text || 'FLASH COUNT');
     setTickerSpeed(settings.ticker_speed || 30);
     setLogoUrl(settings.logo_url);
+    setCountingStartTime(settings.counting_start_time || '2026-09-14T13:00');
+    setIsCountingStarted(Boolean(settings.is_counting_started));
+    setCountingNotice(
+      settings.counting_notice || 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
+    );
   }, [settings]);
+
+  const isPastSchedule = countingStartTime ? new Date() >= new Date(countingStartTime) : false;
+  const isCurrentlyActive = isCountingStarted || isPastSchedule;
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,6 +69,37 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
     showAlert.toast('Logo direset ke logo bawaan.', 'info');
   };
 
+  const handleToggleCountingNow = async () => {
+    const nextState = !isCountingStarted;
+    const confirmed = await showAlert.confirm({
+      title: nextState ? 'Buka Perhitungan Suara Sekarang?' : 'Kunci / Tunda Perhitungan Suara?',
+      text: nextState
+        ? 'Membuka perhitungan suara akan mengizinkan seluruh Petugas Operator TPS untuk login dan mulai menginput rekapitulasi suara.'
+        : 'Mengunci perhitungan suara akan menolak login operator TPS dan menampilkan tampilan hitung mundur / terkunci pada halaman login.',
+      confirmButtonText: nextState ? 'Ya, Buka Sekarang' : 'Ya, Kunci Perhitungan',
+      icon: nextState ? 'question' : 'warning',
+      confirmButtonClass: nextState
+        ? 'px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+        : 'px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+    });
+
+    if (!confirmed) return;
+
+    setIsCountingStarted(nextState);
+    onSaveSettings({
+      title,
+      subtitle,
+      organizer,
+      logo_url: logoUrl,
+      flash_count_text: flashCountText,
+      ticker_speed: tickerSpeed,
+      counting_start_time: countingStartTime,
+      is_counting_started: nextState,
+      counting_notice: countingNotice
+    });
+    showAlert.toast(nextState ? 'Perhitungan suara berhasil dibuka!' : 'Perhitungan suara berhasil dikunci.', 'info');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveSettings({
@@ -64,10 +108,13 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
       organizer,
       logo_url: logoUrl,
       flash_count_text: flashCountText,
-      ticker_speed: tickerSpeed
+      ticker_speed: tickerSpeed,
+      counting_start_time: countingStartTime,
+      is_counting_started: isCountingStarted,
+      counting_notice: countingNotice
     });
     setSaveSuccess(true);
-    showAlert.success('Pengaturan Disimpan!', 'Judul siaran, logo, dan teks berjalan berhasil diperbarui.');
+    showAlert.success('Pengaturan Disimpan!', 'Jadwal perhitungan suara, logo, dan pengaturan siaran berhasil diperbarui.');
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
@@ -89,6 +136,105 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
+        {/* SECTION: JADWAL & KONTROL PEMBUKAAN PERHITUNGAN SUARA */}
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-2xl border border-slate-700 shadow-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/80">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                isCurrentlyActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                <span className="material-symbols-outlined text-xl">
+                  {isCurrentlyActive ? 'lock_open' : 'lock_clock'}
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                  <span>Jadwal & Pembukaan Perhitungan Suara</span>
+                  <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-black ${
+                    isCurrentlyActive 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                  }`}>
+                    {isCurrentlyActive ? 'Aktif / Dibuka' : 'Belum Mulai (Terkunci)'}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Atur jam resmi pembukaan perhitungan suara atau buka/kunci secara langsung.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Action Button */}
+            <button
+              type="button"
+              onClick={handleToggleCountingNow}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                isCountingStarted
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">
+                {isCountingStarted ? 'lock' : 'key'}
+              </span>
+              <span>{isCountingStarted ? 'Kunci / Tunda Perhitungan' : 'Buka Perhitungan Sekarang'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* Start Datetime Picker */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 mb-1.5 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm text-emerald-400">schedule</span>
+                <span>Waktu Resmi Mulai Perhitungan (WITA)</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={countingStartTime}
+                onChange={(e) => setCountingStartTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                {isPastSchedule 
+                  ? '✓ Jadwal waktu telah terlewati, perhitungan aktif otomatis.' 
+                  : '⏳ Perhitungan akan terbuka otomatis saat waktu ini tercapai.'}
+              </p>
+            </div>
+
+            {/* Manual Override Status Display */}
+            <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status Override Admin</span>
+              <div className="my-1 flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${isCountingStarted ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-500'}`} />
+                <span className="text-xs font-bold text-white">
+                  {isCountingStarted ? 'Dibuka Langsung secara Manual oleh Admin' : 'Mengikuti Jadwal Otomatis'}
+                </span>
+              </div>
+              <p className="text-[10.5px] text-slate-400 leading-tight">
+                Jika dibuka manual, operator TPS dapat langsung login tanpa menunggu jadwal waktu tercapai.
+              </p>
+            </div>
+          </div>
+
+          {/* Counting Notice Input */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 mb-1.5 flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm text-amber-400">announcement</span>
+              <span>Pesan Pengumuman untuk Operator TPS (Layar Login)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={countingNotice}
+              onChange={(e) => setCountingNotice(e.target.value)}
+              placeholder="Tuliskan pesan pemberitahuan yang tampil saat operator membuka halaman login sebelum waktu perhitungan dimulai..."
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+            />
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Pesan ini akan tampil di layar login terkunci & modal notifikasi saat operator TPS mencoba login.
+            </p>
+          </div>
+        </div>
+
         {/* Logo Upload Section */}
         <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
           <label className="block font-bold text-sm text-on-surface mb-2">

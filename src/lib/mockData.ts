@@ -193,7 +193,10 @@ export const DEFAULT_ELECTION_SETTINGS: ElectionSettings = {
   organizer: 'Panwaslukel Desa Belega',
   logo_url: null,
   flash_count_text: 'FLASH COUNT',
-  ticker_speed: 30
+  ticker_speed: 30,
+  counting_start_time: '2026-09-14T13:00',
+  is_counting_started: false,
+  counting_notice: 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
 };
 
 export const calculateSummary = (

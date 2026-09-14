@@ -21,6 +21,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
 
   // Settings & Officers State
   const [electionSettings, setElectionSettings] = useState<ElectionSettings>(() => {
@@ -34,6 +35,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
 
   const [officers, setOfficers] = useState<OfficerUser[]>([]);
   const [tpsList, setTpsList] = useState<TPSRecapItem[]>([]);
+
+  // Ticker for real-time countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Load data & Listen for cross-tab updates
   useEffect(() => {
@@ -58,13 +67,16 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
             .maybeSingle()
             .then(({ data }) => {
               if (data) {
-                const mapped = {
+                const mapped: ElectionSettings = {
                   title: data.title || DEFAULT_ELECTION_SETTINGS.title,
                   subtitle: data.subtitle || DEFAULT_ELECTION_SETTINGS.subtitle,
                   organizer: data.organizer || DEFAULT_ELECTION_SETTINGS.organizer,
                   logo_url: data.logo_url || null,
                   flash_count_text: data.flash_count_text || 'FLASH COUNT',
-                  ticker_speed: data.ticker_speed || 30
+                  ticker_speed: data.ticker_speed || 30,
+                  counting_start_time: data.counting_start_time || DEFAULT_ELECTION_SETTINGS.counting_start_time,
+                  is_counting_started: Boolean(data.is_counting_started ?? DEFAULT_ELECTION_SETTINGS.is_counting_started),
+                  counting_notice: data.counting_notice || DEFAULT_ELECTION_SETTINGS.counting_notice
                 };
                 setElectionSettings(mapped);
                 updateDynamicFavicon(mapped.logo_url, `Login Panitia - ${mapped.title}`);
@@ -85,7 +97,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
           id: 'admin-main',
           full_name: 'I Gede Ketut (Ketua Panitia)',
           email: 'admin@pilkel.belega.id',
-          // Password tidak disimpan di sini — dikelola oleh Supabase Auth
           role: 'admin',
           created_at: new Date().toISOString()
         };
@@ -100,7 +111,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
             id: `op-${tps.polling_station_id}`,
             full_name: `Petugas ${tps.code} (${tps.banjar_name})`,
             email: `tps${(idx + 1) < 10 ? '0' + (idx + 1) : idx + 1}@pilkel.belega.id`,
-            // Password tidak disimpan di sini — dikelola oleh Supabase Auth
             tps_id: tps.polling_station_id,
             role: 'operator',
             created_at: new Date().toISOString()
@@ -135,8 +145,16 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
       };
     }
 
+    const storageListener = (e: StorageEvent) => {
+      if (e.key === 'belega_election_settings' || e.key === 'belega_officers' || e.key === 'belega_tps_recap') {
+        loadData();
+      }
+    };
+    window.addEventListener('storage', storageListener);
+
     return () => {
       if (channel) channel.close();
+      window.removeEventListener('storage', storageListener);
     };
   }, []);
 
@@ -145,9 +163,69 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
     ? tpsList.find(t => t.polling_station_id === selectedOfficer.tps_id) 
     : null;
 
+  // Schedule & Active Counting State
+  const isPastSchedule = electionSettings.counting_start_time 
+    ? now >= new Date(electionSettings.counting_start_time) 
+    : false;
+  const isCountingActive = Boolean(electionSettings.is_counting_started) || isPastSchedule;
+
+  const isTargetAdmin = loginMode === 'select' 
+    ? selectedOfficer?.role === 'admin' 
+    : manualEmail.trim().toLowerCase().startsWith('admin@');
+
+  // Countdown timer calculations
+  const getTimeRemaining = () => {
+    if (!electionSettings.counting_start_time) return null;
+    const target = new Date(electionSettings.counting_start_time).getTime();
+    const diff = target - now.getTime();
+    if (diff <= 0) return null;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / 1000 / 60) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+    return { days, hours, minutes, seconds };
+  };
+  const countdown = getTimeRemaining();
+
+  const formattedStartTime = electionSettings.counting_start_time 
+    ? new Date(electionSettings.counting_start_time).toLocaleString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) + ' WITA'
+    : 'Pukul 13:00 WITA';
+
+  const handleSelectAdminAccount = () => {
+    const adminAcc = officers.find(o => o.role === 'admin') || officers[0];
+    if (adminAcc) {
+      setLoginMode('select');
+      setSelectedAccountId(adminAcc.id);
+      setErrorMsg('');
+      showAlert.toast('Beralih ke mode login Panitia Utama (Admin)', 'info');
+    }
+  };
+
+  const handleShowLockInfo = () => {
+    showAlert.info(
+      'Perhitungan Belum Dimulai',
+      `${electionSettings.counting_notice || 'Perhitungan suara TPS belum dibuka oleh Panitia.'}\n\nJadwal Resmi: ${formattedStartTime}`
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+
+    // Validasi Keamanan: Jika perhitungan belum dibuka dan bukan Admin, tolak login
+    if (!isCountingActive && !isTargetAdmin) {
+      const lockMessage = electionSettings.counting_notice || `Perhitungan suara untuk Operator TPS belum dibuka resmi oleh Panitia. Jadwal mulai: ${formattedStartTime}`;
+      setErrorMsg(lockMessage);
+      showAlert.warning('Perhitungan Belum Dimulai', lockMessage);
+      return;
+    }
 
     if (!password) {
       setErrorMsg('Silakan masukkan kata sandi akun.');
@@ -194,21 +272,19 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
     }
   };
 
-  // handleQuickBypassLogin dihapus — tidak boleh ada bypass login tanpa password sungguhan
-
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 sm:p-6 select-none relative overflow-hidden bg-tv-grid">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-3 sm:p-6 select-none relative overflow-hidden bg-tv-grid">
       {/* Ambient background glow */}
       <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="bg-white border border-slate-200/80 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative z-10">
+      <div className="bg-white border border-slate-200/80 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative z-10 overflow-hidden">
         
         {/* Header Branding with Professional Compact Logo */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-3.5">
           <div className="flex justify-center mb-2">
             {electionSettings.logo_url ? (
-              <div className="w-11 h-11 p-1 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center">
+              <div className="w-12 h-12 p-1 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center">
                 <img
                   src={electionSettings.logo_url}
                   alt="Logo Pemilihan"
@@ -216,8 +292,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-700/20">
-                <span className="material-symbols-outlined text-xl">how_to_vote</span>
+              <div className="w-11 h-11 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-700/20">
+                <span className="material-symbols-outlined text-2xl">how_to_vote</span>
               </div>
             )}
           </div>
@@ -233,8 +309,96 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
           </p>
         </div>
 
+        {/* NOTIFIKASI & HITUNG MUNDUR KETIKA PERHITUNGAN BELUM DIMULAI */}
+        {!isCountingActive && (
+          <div className="mb-4 bg-gradient-to-br from-slate-900 to-slate-800 border border-amber-500/40 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden animate-fadeIn">
+            {/* Ambient decorative glow */}
+            <div className="absolute -right-8 -top-8 w-24 h-24 bg-amber-500/20 rounded-full blur-xl pointer-events-none" />
+            
+            <div className="flex items-start gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-lg animate-pulse">lock_clock</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
+                    Perhitungan Belum Dimulai
+                  </span>
+                  <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.2 rounded font-bold border border-amber-400/30">
+                    Terkunci
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+                  {electionSettings.counting_notice || 'Perhitungan suara TPS resmi belum dimulai oleh Panitia.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Countdown Display Boxes */}
+            {countdown && (
+              <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-700/80 my-2">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center mb-1.5 flex items-center justify-center gap-1">
+                  <span className="material-symbols-outlined text-xs text-amber-400">timer</span>
+                  <span>Hitung Mundur Mulai Perhitungan:</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 text-center">
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-1.5">
+                    <span className="block text-base sm:text-lg font-black text-amber-300 font-mono leading-none">
+                      {String(countdown.days).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Hari</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-1.5">
+                    <span className="block text-base sm:text-lg font-black text-amber-300 font-mono leading-none">
+                      {String(countdown.hours).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Jam</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-1.5">
+                    <span className="block text-base sm:text-lg font-black text-amber-300 font-mono leading-none">
+                      {String(countdown.minutes).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Menit</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-1.5">
+                    <span className="block text-base sm:text-lg font-black text-amber-300 font-mono leading-none">
+                      {String(countdown.seconds).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Detik</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center mt-1.5 font-medium truncate">
+                  Jadwal: <strong className="text-slate-200">{formattedStartTime}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Quick action: Admin bypass switch */}
+            <div className="pt-1 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleShowLockInfo}
+                className="text-[10.5px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+              >
+                Detail Pengumuman
+              </button>
+              
+              {!isTargetAdmin && (
+                <button
+                  type="button"
+                  onClick={handleSelectAdminAccount}
+                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-[10.5px] transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xs">admin_panel_settings</span>
+                  <span>Masuk sebagai Admin</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Mode Selector Tab (Pilih Akun vs Input Manual) */}
-        <div className="bg-slate-100 p-1 rounded-xl flex items-center mb-4 border border-slate-200">
+        <div className="bg-slate-100 p-1 rounded-xl flex items-center mb-3.5 border border-slate-200">
           <button
             type="button"
             onClick={() => {
@@ -283,7 +447,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
         )}
 
         {/* Main Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3 relative">
+          
           {loginMode === 'select' ? (
             <>
               {/* Account Dropdown */}
@@ -401,54 +566,82 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
             </div>
           )}
 
-          {/* Password Input (Both Modes) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Kata Sandi
-            </label>
+          {/* WRAPPER FORM DENGAN EFEK KABUR/BLUR JIKA PERHITUNGAN BELUM DIMULAI DAN BUKAN ADMIN */}
+          <div className={`space-y-3 transition-all relative ${
+            !isCountingActive && !isTargetAdmin 
+              ? 'opacity-60 blur-[1.5px] pointer-events-none select-none' 
+              : ''
+          }`}>
+            
+            {/* Password Input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Kata Sandi
+              </label>
 
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan kata sandi..."
-                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none shadow-xs pr-10 pl-9"
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <span className="material-symbols-outlined text-lg">lock</span>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi..."
+                  disabled={!isCountingActive && !isTargetAdmin}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none shadow-xs pr-10 pl-9 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="material-symbols-outlined text-lg">lock</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title={showPassword ? 'Sembunyikan sandi' : 'Lihat sandi'}
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                title={showPassword ? 'Sembunyikan sandi' : 'Lihat sandi'}
-              >
-                <span className="material-symbols-outlined text-lg">
-                  {showPassword ? 'visibility_off' : 'visibility'}
-                </span>
-              </button>
             </div>
+
+            {/* Login Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || (!isCountingActive && !isTargetAdmin)}
+              className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span>Memproses Masuk...</span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Masuk ke Panel {loginMode === 'select' && selectedOfficer?.role === 'admin' ? 'Admin' : 'Operator'}
+                  </span>
+                  <span className="material-symbols-outlined text-base">arrow_forward</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Login Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm active:scale-[0.99] disabled:opacity-70 mt-1"
-          >
-            {isSubmitting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span>Memproses Masuk...</span>
-              </>
-            ) : (
-              <>
-                <span>Masuk ke Panel {loginMode === 'select' && selectedOfficer?.role === 'admin' ? 'Admin' : 'Operator'}</span>
-                <span className="material-symbols-outlined text-base">arrow_forward</span>
-              </>
-            )}
-          </button>
+          {/* OVERLAY NOTIFIKASI KABUR JIKA OPERATOR MENCOBA KLIK KETIKA BELUM DIMULAI */}
+          {!isCountingActive && !isTargetAdmin && (
+            <div 
+              onClick={handleShowLockInfo}
+              className="absolute inset-x-0 bottom-0 top-[110px] bg-slate-900/10 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-4 text-center cursor-pointer border border-amber-300/40 shadow-sm"
+            >
+              <div className="w-10 h-10 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center mb-1.5 shadow-md animate-bounce">
+                <span className="material-symbols-outlined text-xl">lock</span>
+              </div>
+              <strong className="text-xs font-bold text-slate-900">Perhitungan Suara Belum Dimulai</strong>
+              <p className="text-[11px] text-slate-600 mt-0.5 max-w-xs">
+                Klik untuk melihat jadwal resmi pembukaan perhitungan suara oleh Panitia.
+              </p>
+            </div>
+          )}
+
         </form>
 
         {/* Back to Public Link */}
@@ -468,5 +661,3 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
     </div>
   );
 };
-
-

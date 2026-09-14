@@ -123,7 +123,10 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
           organizer: settingsData.organizer || DEFAULT_ELECTION_SETTINGS.organizer,
           logo_url: settingsData.logo_url || null,
           flash_count_text: settingsData.flash_count_text || 'FLASH COUNT',
-          ticker_speed: settingsData.ticker_speed || 30
+          ticker_speed: settingsData.ticker_speed || 30,
+          counting_start_time: settingsData.counting_start_time || DEFAULT_ELECTION_SETTINGS.counting_start_time,
+          is_counting_started: Boolean(settingsData.is_counting_started ?? DEFAULT_ELECTION_SETTINGS.is_counting_started),
+          counting_notice: settingsData.counting_notice || DEFAULT_ELECTION_SETTINGS.counting_notice
         };
         setElectionSettings(mappedSettings);
         localStorage.setItem('belega_election_settings', JSON.stringify(mappedSettings));
@@ -364,6 +367,9 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
               logo_url: newSettings.logo_url,
               flash_count_text: newSettings.flash_count_text,
               ticker_speed: newSettings.ticker_speed,
+              counting_start_time: newSettings.counting_start_time,
+              is_counting_started: newSettings.is_counting_started,
+              counting_notice: newSettings.counting_notice,
               updated_at: new Date().toISOString()
             })
             .eq('id', existing.id);
@@ -378,6 +384,9 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
               logo_url: newSettings.logo_url,
               flash_count_text: newSettings.flash_count_text,
               ticker_speed: newSettings.ticker_speed,
+              counting_start_time: newSettings.counting_start_time,
+              is_counting_started: newSettings.is_counting_started,
+              counting_notice: newSettings.counting_notice,
               updated_at: new Date().toISOString()
             });
         }

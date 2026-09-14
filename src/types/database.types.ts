@@ -30,6 +30,9 @@ export interface ElectionSettings {
   logo_url: string | null;
   flash_count_text?: string;
   ticker_speed?: number;
+  counting_start_time?: string | null;
+  is_counting_started?: boolean;
+  counting_notice?: string;
 }
 
 export interface Election {
