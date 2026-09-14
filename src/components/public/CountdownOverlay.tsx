@@ -92,9 +92,9 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({
             <span className="material-symbols-outlined text-base">campaign</span>
             <span>Pengumuman Panitia Pemilihan</span>
           </div>
-          <p>
+          <p className="font-medium text-slate-100">
             {electionSettings.counting_notice ||
-              'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Siaran langsung tabulasi perolehan suara akan otomatis aktif setelah perhitungan suara resmi dimulai.'}
+              `Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada ${formattedStartTime}.`}
           </p>
         </div>
 

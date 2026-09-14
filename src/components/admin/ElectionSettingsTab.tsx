@@ -16,11 +16,33 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
   const [organizer, setOrganizer] = useState(settings.organizer);
   const [flashCountText, setFlashCountText] = useState(settings.flash_count_text || 'FLASH COUNT');
   const [tickerSpeed, setTickerSpeed] = useState<number>(settings.ticker_speed || 30);
+  const generateNoticeText = (startTimeStr: string): string => {
+    if (!startTimeStr) {
+      return 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA.';
+    }
+    try {
+      const d = new Date(startTimeStr);
+      const dayName = d.toLocaleDateString('id-ID', { weekday: 'long' });
+      const fullDate = d.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const timeStr = d.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).replace(':', '.');
+      return `Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada Hari ${dayName}, ${fullDate} pukul ${timeStr} WITA.`;
+    } catch {
+      return 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA.';
+    }
+  };
+
   const [logoUrl, setLogoUrl] = useState<string | null>(settings.logo_url);
   const [countingStartTime, setCountingStartTime] = useState<string>(settings.counting_start_time || '2026-09-14T13:00');
   const [isCountingStarted, setIsCountingStarted] = useState<boolean>(Boolean(settings.is_counting_started));
   const [countingNotice, setCountingNotice] = useState<string>(
-    settings.counting_notice || 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
+    settings.counting_notice || generateNoticeText(settings.counting_start_time || '2026-09-14T13:00')
   );
   const [saveSuccess, setSaveSuccess] = useState(false);
   
@@ -33,10 +55,11 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
     setFlashCountText(settings.flash_count_text || 'FLASH COUNT');
     setTickerSpeed(settings.ticker_speed || 30);
     setLogoUrl(settings.logo_url);
-    setCountingStartTime(settings.counting_start_time || '2026-09-14T13:00');
+    const sTime = settings.counting_start_time || '2026-09-14T13:00';
+    setCountingStartTime(sTime);
     setIsCountingStarted(Boolean(settings.is_counting_started));
     setCountingNotice(
-      settings.counting_notice || 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
+      settings.counting_notice || generateNoticeText(sTime)
     );
   }, [settings]);
 
@@ -191,7 +214,14 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
               <input
                 type="datetime-local"
                 value={countingStartTime}
-                onChange={(e) => setCountingStartTime(e.target.value)}
+                onChange={(e) => {
+                  const newTime = e.target.value;
+                  setCountingStartTime(newTime);
+                  // Update kalimat jika masih format standar
+                  if (!countingNotice || countingNotice.startsWith('Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada')) {
+                    setCountingNotice(generateNoticeText(newTime));
+                  }
+                }}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <p className="text-[11px] text-slate-400 mt-1">
@@ -218,19 +248,31 @@ export const ElectionSettingsTab: React.FC<ElectionSettingsTabProps> = ({
 
           {/* Counting Notice Input */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 mb-1.5 flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm text-amber-400">announcement</span>
-              <span>Pesan Pengumuman untuk Operator TPS (Layar Login)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm text-amber-400">announcement</span>
+                <span>Pesan Pengumuman untuk Layar Siaran Publik & Login</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setCountingNotice(generateNoticeText(countingStartTime));
+                  showAlert.toast('Kalimat pengumuman disesuaikan otomatis dengan jadwal.', 'info');
+                }}
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+              >
+                🔄 Buat Otomatis Sesuai Tanggal
+              </button>
+            </div>
             <textarea
               rows={2}
               value={countingNotice}
               onChange={(e) => setCountingNotice(e.target.value)}
-              placeholder="Tuliskan pesan pemberitahuan yang tampil saat operator membuka halaman login sebelum waktu perhitungan dimulai..."
+              placeholder="Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada Hari ... pukul 13.00 WITA."
               className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
             />
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Pesan ini akan tampil di layar login terkunci & modal notifikasi saat operator TPS mencoba login.
+              Pesan ini otomatis tampil di banner siaran layar publik saat perhitungan suara belum dimulai.
             </p>
           </div>
         </div>

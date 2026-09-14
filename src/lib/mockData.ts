@@ -196,7 +196,7 @@ export const DEFAULT_ELECTION_SETTINGS: ElectionSettings = {
   ticker_speed: 30,
   counting_start_time: '2026-09-14T13:00',
   is_counting_started: false,
-  counting_notice: 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA. Petugas Operator TPS dapat login setelah waktu perhitungan suara dibuka.'
+  counting_notice: 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada Senin, 14 September 2026 pukul 13.00 WITA.'
 };
 
 export const calculateSummary = (
