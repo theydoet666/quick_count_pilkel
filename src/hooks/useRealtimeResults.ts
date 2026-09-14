@@ -357,38 +357,58 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
           .limit(1)
           .maybeSingle();
 
+        const fullPayload: Record<string, any> = {
+          title: newSettings.title,
+          subtitle: newSettings.subtitle,
+          organizer: newSettings.organizer,
+          logo_url: newSettings.logo_url,
+          flash_count_text: newSettings.flash_count_text,
+          ticker_speed: newSettings.ticker_speed,
+          counting_start_time: newSettings.counting_start_time,
+          is_counting_started: newSettings.is_counting_started,
+          counting_notice: newSettings.counting_notice,
+          updated_at: new Date().toISOString()
+        };
+
+        const standardPayload: Record<string, any> = {
+          title: newSettings.title,
+          subtitle: newSettings.subtitle,
+          organizer: newSettings.organizer,
+          logo_url: newSettings.logo_url,
+          flash_count_text: newSettings.flash_count_text,
+          ticker_speed: newSettings.ticker_speed,
+          updated_at: new Date().toISOString()
+        };
+
         if (existing?.id) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from('election_settings')
-            .update({
-              title: newSettings.title,
-              subtitle: newSettings.subtitle,
-              organizer: newSettings.organizer,
-              logo_url: newSettings.logo_url,
-              flash_count_text: newSettings.flash_count_text,
-              ticker_speed: newSettings.ticker_speed,
-              counting_start_time: newSettings.counting_start_time,
-              is_counting_started: newSettings.is_counting_started,
-              counting_notice: newSettings.counting_notice,
-              updated_at: new Date().toISOString()
-            })
+            .update(fullPayload)
             .eq('id', existing.id);
+
+          if (updateErr) {
+            console.warn('Gagal update dengan payload lengkap, mencoba standard payload:', updateErr.message);
+            await supabase
+              .from('election_settings')
+              .update(standardPayload)
+              .eq('id', existing.id);
+          }
         } else {
-          await supabase
+          const { error: insertErr } = await supabase
             .from('election_settings')
             .insert({
               election_id: electionId,
-              title: newSettings.title,
-              subtitle: newSettings.subtitle,
-              organizer: newSettings.organizer,
-              logo_url: newSettings.logo_url,
-              flash_count_text: newSettings.flash_count_text,
-              ticker_speed: newSettings.ticker_speed,
-              counting_start_time: newSettings.counting_start_time,
-              is_counting_started: newSettings.is_counting_started,
-              counting_notice: newSettings.counting_notice,
-              updated_at: new Date().toISOString()
+              ...fullPayload
             });
+
+          if (insertErr) {
+            await supabase
+              .from('election_settings')
+              .insert({
+                election_id: electionId,
+                ...standardPayload
+              });
+          }
         }
       } catch (err) {
         console.error('Failed to save settings to Supabase:', err);
