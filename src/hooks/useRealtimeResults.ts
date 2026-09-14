@@ -134,20 +134,40 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (profilesData && profilesData.length > 0) {
-        const ops: OfficerUser[] = profilesData.map(p => ({
-          id: p.id,
-          full_name: p.full_name,
-          email: p.email || '',
-          phone: p.phone || '',
-          tps_id: p.tps_id || '',
-          role: (p.role === 'admin' ? 'admin' : 'operator') as any,
-          created_at: p.created_at
-        }));
-        setOfficersList(ops);
-        localStorage.setItem('belega_officers', JSON.stringify(ops));
+        // Deduplikasi akun: utamakan profil terbaru berdasarkan email atau ID
+        const seenEmails = new Set<string>();
+        const seenTps = new Set<string>();
+        const uniqueOps: OfficerUser[] = [];
+
+        profilesData.forEach(p => {
+          const emailClean = (p.email || '').toLowerCase().trim();
+          // Lewati jika email duplikat
+          if (emailClean && seenEmails.has(emailClean)) return;
+          if (emailClean) seenEmails.add(emailClean);
+
+          uniqueOps.push({
+            id: p.id,
+            full_name: p.full_name,
+            email: p.email || '',
+            phone: p.phone || '',
+            tps_id: p.tps_id || '',
+            role: (p.role === 'admin' ? 'admin' : 'operator') as any,
+            created_at: p.created_at
+          });
+        });
+
+        // Urutkan admin di atas, lalu TPS 01 s/d TPS 09
+        uniqueOps.sort((a, b) => {
+          if (a.role === 'admin') return -1;
+          if (b.role === 'admin') return 1;
+          return (a.email || '').localeCompare(b.email || '');
+        });
+
+        setOfficersList(uniqueOps);
+        localStorage.setItem('belega_officers', JSON.stringify(uniqueOps));
       }
 
       // 4. Fetch Summary and Recap via RPC or tables
