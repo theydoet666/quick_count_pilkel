@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRealtimeResults } from '../hooks/useRealtimeResults';
 import { HeaderBroadcast } from '../components/HeaderBroadcast';
 import { CandidatePanel } from '../components/CandidatePanel';
@@ -6,6 +6,7 @@ import { SummaryCards } from '../components/SummaryCards';
 import { TPSRecapTable } from '../components/TPSRecapTable';
 import { EvidenceModal } from '../components/EvidenceModal';
 import { FooterTicker } from '../components/FooterTicker';
+import { CountdownOverlay } from '../components/public/CountdownOverlay';
 import { TPSRecapItem } from '../types/database.types';
 
 interface PublicDashboardProps {
@@ -19,6 +20,21 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
 }) => {
   const { summary, tpsList, electionSettings, isLive, lastUpdated } = useRealtimeResults();
   const [selectedEvidenceTps, setSelectedEvidenceTps] = useState<TPSRecapItem | null>(null);
+  const [now, setNow] = useState<Date>(new Date());
+
+  // Realtime ticker for countdown clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Determine if vote counting is active
+  const isPastSchedule = electionSettings.counting_start_time
+    ? now >= new Date(electionSettings.counting_start_time)
+    : false;
+  const isCountingActive = Boolean(electionSettings.is_counting_started) || isPastSchedule;
 
   // Calculate unique Banjar Dinas count dynamically from TPS list data
   const banjarCount = new Set(
@@ -44,7 +60,7 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
       <HeaderBroadcast
         verifiedTpsCount={summary.verified_tps}
         totalTpsCount={summary.total_tps}
-        isLive={isLive}
+        isLive={isCountingActive ? isLive : false}
         title={electionSettings.title}
         subtitle={electionSettings.subtitle}
         logoUrl={electionSettings.logo_url}
@@ -52,15 +68,21 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
         isAdminLoggedIn={isAdminLoggedIn}
       />
 
-      {/* Main Broadcast Screen Content */}
-      <main className="w-full pt-20 sm:pt-24 pb-14 sm:pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-3 sm:px-margin-mobile md:px-margin-desktop z-10">
+      {/* Main Broadcast Screen Content (Blurred when counting not active) */}
+      <main className={`w-full pt-20 sm:pt-24 pb-14 sm:pb-16 flex-1 flex flex-col max-w-[1440px] mx-auto px-3 sm:px-margin-mobile md:px-margin-desktop z-10 transition-all duration-700 ${
+        !isCountingActive ? 'filter blur-[5px] opacity-40 select-none pointer-events-none' : ''
+      }`}>
         
         {/* TV Broadcast Banner Header */}
         <div className="mb-space-sm sm:mb-space-md flex items-center justify-between flex-wrap gap-2 bg-[#111827]/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-slate-700/60 shadow-xl">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="flex h-2.5 w-2.5 sm:h-3 sm:w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                isCountingActive ? 'bg-emerald-400' : 'bg-amber-400'
+              }`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 ${
+                isCountingActive ? 'bg-emerald-500' : 'bg-amber-500'
+              }`}></span>
             </span>
             <span className="font-black text-[11px] sm:text-xs md:text-sm uppercase tracking-wider text-white">
               PUSAT TABULASI & HITUNG CEPAT DIGITAL {electionSettings.title}
@@ -86,7 +108,6 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
             </span>
           </div>
         </div>
-
 
         {/* Grid Layout: Left Candidates + Right TPS Breakdown */}
         <div className="grid grid-cols-12 gap-gutter-desktop items-start flex-1">
@@ -114,6 +135,16 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
         </div>
       </main>
 
+      {/* Countdown Overlay on Public Page when Counting is Pending */}
+      {!isCountingActive && (
+        <CountdownOverlay
+          electionSettings={electionSettings}
+          now={now}
+          onAdminClick={onAdminClick}
+          isAdminLoggedIn={isAdminLoggedIn}
+        />
+      )}
+
       {/* Evidence Photo Modal */}
       {selectedEvidenceTps && (
         <EvidenceModal
@@ -133,5 +164,3 @@ export const PublicDashboard: React.FC<PublicDashboardProps> = ({
     </div>
   );
 };
-
-
