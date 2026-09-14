@@ -110,15 +110,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
         setOfficers(allAvailableAccounts);
 
         if (allAvailableAccounts.length > 0) {
-          // Default selection to first operator or admin
-          const firstOperator = completeOperators[0] || defaultAdmin;
-          setSelectedAccountId(firstOperator.id);
+          // Default selection to Admin account
+          setSelectedAccountId(defaultAdmin.id || allAvailableAccounts[0].id);
         }
       } catch {
         setOfficers(MOCK_OFFICERS);
         setTpsList(MOCK_TPS_RECAP);
-        if (MOCK_OFFICERS.length > 0) {
-          setSelectedAccountId(MOCK_OFFICERS[0].id);
+        const adminMock = MOCK_OFFICERS.find(o => o.role === 'admin') || MOCK_OFFICERS[0];
+        if (adminMock) {
+          setSelectedAccountId(adminMock.id);
         }
       }
     };

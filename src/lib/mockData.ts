@@ -35,7 +35,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a1111111-1111-1111-1111-111111111111',
     code: 'TPS 01',
-    banjar_name: 'Balai Banjar Belega Kangin',
+    banjar_name: 'Banjar Pasdalem',
     registered_voters: 640,
     additional_voters: 12,
     status: 'pending',
@@ -52,7 +52,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a2222222-2222-2222-2222-222222222222',
     code: 'TPS 02',
-    banjar_name: 'Balai Banjar Belega Kauh',
+    banjar_name: 'Gedung Serba Guna',
     registered_voters: 610,
     additional_voters: 8,
     status: 'pending',
@@ -69,7 +69,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a3333333-3333-3333-3333-333333333333',
     code: 'TPS 03',
-    banjar_name: 'Balai Banjar Belega Tengah',
+    banjar_name: 'Gedung Serba Guna',
     registered_voters: 680,
     additional_voters: 15,
     status: 'pending',
@@ -86,7 +86,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a4444444-4444-4444-4444-444444444444',
     code: 'TPS 04',
-    banjar_name: 'Balai Banjar Kebon',
+    banjar_name: 'Banjar Kebon Kelod',
     registered_voters: 590,
     additional_voters: 6,
     status: 'pending',
@@ -103,7 +103,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a5555555-5555-5555-5555-555555555555',
     code: 'TPS 05',
-    banjar_name: 'Balai Banjar Jasri',
+    banjar_name: 'Banjar Kebon Kaja',
     registered_voters: 650,
     additional_voters: 10,
     status: 'pending',
@@ -120,9 +120,60 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
   {
     polling_station_id: 'a6666666-6666-6666-6666-666666666666',
     code: 'TPS 06',
-    banjar_name: 'Balai Banjar Selat',
+    banjar_name: 'Banjar Belega Kanginan',
     registered_voters: 658,
     additional_voters: 9,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
+    candidate_votes: {
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
+    },
+    leading_candidate_number: null,
+    vote_margin: 0
+  },
+  {
+    polling_station_id: 'a7777777-7777-7777-7777-777777777777',
+    code: 'TPS 07',
+    banjar_name: 'Banjar Jasri',
+    registered_voters: 620,
+    additional_voters: 7,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
+    candidate_votes: {
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
+    },
+    leading_candidate_number: null,
+    vote_margin: 0
+  },
+  {
+    polling_station_id: 'a8888888-8888-8888-8888-888888888888',
+    code: 'TPS 08',
+    banjar_name: 'SD N 3 Belega',
+    registered_voters: 635,
+    additional_voters: 11,
+    status: 'pending',
+    evidence_photo_url: null,
+    total_valid_votes: 0,
+    invalid_votes_count: 0,
+    candidate_votes: {
+      '1': { candidate_id: '11111111-1111-1111-1111-111111111111', votes: 0, percentage: 0 },
+      '2': { candidate_id: '22222222-2222-2222-2222-222222222222', votes: 0, percentage: 0 }
+    },
+    leading_candidate_number: null,
+    vote_margin: 0
+  },
+  {
+    polling_station_id: 'a9999999-9999-9999-9999-999999999999',
+    code: 'TPS 09',
+    banjar_name: 'SD N 3 Belega',
+    registered_voters: 615,
+    additional_voters: 8,
     status: 'pending',
     evidence_photo_url: null,
     total_valid_votes: 0,
@@ -221,10 +272,18 @@ export const calculateSummary = (
 // Di produksi, buat akun via Supabase Dashboard (Authentication > Users).
 export const MOCK_OFFICERS: OfficerUser[] = [
   {
+    id: 'off-admin',
+    full_name: 'I Gede Ketut (Ketua Panitia)',
+    email: 'admin@pilkel.belega.id',
+    phone: '081234567800',
+    tps_id: null,
+    role: 'admin',
+    created_at: new Date().toISOString()
+  },
+  {
     id: 'off-1',
-    full_name: 'Ni Wayan Sari (Petugas TPS 01)',
+    full_name: 'Petugas Banjar Pasdalem (TPS 01)',
     email: 'tps01@pilkel.belega.id',
-    // password tidak disimpan di source code
     phone: '081234567801',
     tps_id: 'a1111111-1111-1111-1111-111111111111',
     role: 'operator',
@@ -232,7 +291,7 @@ export const MOCK_OFFICERS: OfficerUser[] = [
   },
   {
     id: 'off-2',
-    full_name: 'I Made Sukerta (Petugas TPS 02)',
+    full_name: 'Petugas Gedung Serba Guna (TPS 02)',
     email: 'tps02@pilkel.belega.id',
     phone: '081234567802',
     tps_id: 'a2222222-2222-2222-2222-222222222222',
@@ -241,7 +300,7 @@ export const MOCK_OFFICERS: OfficerUser[] = [
   },
   {
     id: 'off-3',
-    full_name: 'I Ketut Suweta (Petugas TPS 03)',
+    full_name: 'Petugas Gedung Serba Guna (TPS 03)',
     email: 'tps03@pilkel.belega.id',
     phone: '081234567803',
     tps_id: 'a3333333-3333-3333-3333-333333333333',
@@ -250,7 +309,7 @@ export const MOCK_OFFICERS: OfficerUser[] = [
   },
   {
     id: 'off-4',
-    full_name: 'Ni Nyoman Rai (Petugas TPS 04)',
+    full_name: 'Petugas Banjar Kebon Kelod (TPS 04)',
     email: 'tps04@pilkel.belega.id',
     phone: '081234567804',
     tps_id: 'a4444444-4444-4444-4444-444444444444',
@@ -259,7 +318,7 @@ export const MOCK_OFFICERS: OfficerUser[] = [
   },
   {
     id: 'off-5',
-    full_name: 'I Wayan Budiana (Petugas TPS 05)',
+    full_name: 'Petugas Banjar Kebon Kaja (TPS 05)',
     email: 'tps05@pilkel.belega.id',
     phone: '081234567805',
     tps_id: 'a5555555-5555-5555-5555-555555555555',
@@ -268,10 +327,37 @@ export const MOCK_OFFICERS: OfficerUser[] = [
   },
   {
     id: 'off-6',
-    full_name: 'Ni Ketut Yanti (Petugas TPS 06)',
+    full_name: 'Petugas Banjar Belega Kanginan (TPS 06)',
     email: 'tps06@pilkel.belega.id',
     phone: '081234567806',
     tps_id: 'a6666666-6666-6666-6666-666666666666',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-7',
+    full_name: 'Petugas Banjar Jasri (TPS 07)',
+    email: 'tps07@pilkel.belega.id',
+    phone: '081234567807',
+    tps_id: 'a7777777-7777-7777-7777-777777777777',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-8',
+    full_name: 'Petugas SD N 3 Belega (TPS 08)',
+    email: 'tps08@pilkel.belega.id',
+    phone: '081234567808',
+    tps_id: 'a8888888-8888-8888-8888-888888888888',
+    role: 'operator',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'off-9',
+    full_name: 'Petugas SD N 3 Belega (TPS 09)',
+    email: 'tps09@pilkel.belega.id',
+    phone: '081234567809',
+    tps_id: 'a9999999-9999-9999-9999-999999999999',
     role: 'operator',
     created_at: new Date().toISOString()
   }
