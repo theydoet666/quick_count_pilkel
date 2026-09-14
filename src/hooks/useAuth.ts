@@ -4,24 +4,32 @@ import { UserRole, Profile, OfficerUser } from '../types/database.types';
 import { MOCK_OFFICERS } from '../lib/mockData';
 
 export function useAuth() {
-  const [user, setUser] = useState<{ id: string; email: string } | null>(() => {
-    const saved = localStorage.getItem('belega_auth_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [profile, setProfile] = useState<Profile | null>(() => {
-    const saved = localStorage.getItem('belega_auth_profile');
-    return saved ? JSON.parse(saved) : null;
-  });
-
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  // Null = belum dicek; string = pesan error; undefined = tidak ada error
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Mode demo (tanpa Supabase): baca dari localStorage hanya untuk keperluan UI
     if (!isSupabaseConfigured) {
+      const savedUser = localStorage.getItem('belega_auth_user');
+      const savedProfile = localStorage.getItem('belega_auth_profile');
+      if (savedUser && savedProfile) {
+        try {
+          setUser(JSON.parse(savedUser));
+          setProfile(JSON.parse(savedProfile));
+        } catch {
+          // localStorage corrupt — buang
+          localStorage.removeItem('belega_auth_user');
+          localStorage.removeItem('belega_auth_profile');
+        }
+      }
       setLoading(false);
       return;
     }
 
+    // Mode produksi: gunakan sesi Supabase Auth sebagai sumber kebenaran
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email || '' });
@@ -47,97 +55,107 @@ export function useAuth() {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      if (data) {
-        setProfile(data as Profile);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) {
+        // KRITIS: jangan fallback ke admin — fail-closed dengan unauthenticated
+        console.warn('fetchProfile: profil tidak ditemukan atau error:', error?.message);
+        setProfile(null);
+        setUser(null);
+        setAuthError('Profil pengguna tidak ditemukan. Hubungi admin.');
+        if (isSupabaseConfigured) {
+          await supabase.auth.signOut();
+        }
       } else {
-        // Fallback default admin profile
-        setProfile({ id: userId, full_name: 'Admin Panitia Belega', role: 'admin', created_at: '' });
+        setProfile(data as Profile);
+        setAuthError(null);
       }
-    } catch {
-      setProfile({ id: userId, full_name: 'Admin Panitia Belega', role: 'admin', created_at: '' });
+    } catch (err) {
+      // KRITIS: error jaringan/lainnya → fail-closed, bukan fail-open ke admin
+      console.error('fetchProfile: unexpected error:', err);
+      setProfile(null);
+      setUser(null);
+      setAuthError('Terjadi kesalahan saat memverifikasi akun. Coba lagi.');
+      if (isSupabaseConfigured) {
+        await supabase.auth.signOut();
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const loginWithEmail = async (
-    email: string,
-    password: string,
-    mockRole?: UserRole,
-    mockTpsId?: string | null,
-    mockName?: string
-  ) => {
-    if (isSupabaseConfigured && !mockRole) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (!error && data.user) {
-          setUser({ id: data.user.id, email: data.user.email || '' });
-          await fetchProfile(data.user.id);
-          return { error: null };
-        }
-      } catch (err) {
-        console.warn('Supabase Auth signIn attempt error, falling back to profiles check:', err);
+  // Login via Supabase Auth (mode produksi)
+  const loginWithSupabase = async (email: string, password: string) => {
+    setLoading(true);
+    setAuthError(null);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setLoading(false);
+        return { error: { message: 'Email atau kata sandi salah. Silakan coba lagi.' } };
       }
+      if (data.user) {
+        setUser({ id: data.user.id, email: data.user.email || '' });
+        await fetchProfile(data.user.id);
+      }
+      return { error: null };
+    } catch (err) {
+      setLoading(false);
+      return { error: { message: 'Gagal terhubung ke server. Periksa koneksi internet Anda.' } };
     }
+  };
 
-    // Profile lookup in Supabase profiles or local storage
-    let profileData: any = null;
-    if (isSupabaseConfigured) {
-      try {
-        const { data } = await supabase.from('profiles').select('*').ilike('email', email).maybeSingle();
-        profileData = data;
-      } catch {}
-    }
-
+  // Login mode demo (hanya aktif saat isSupabaseConfigured = false)
+  // CATATAN: Mode ini TIDAK boleh digunakan di environment produksi.
+  // Seluruh validasi hanya di sisi client — tidak ada keamanan server-side.
+  const loginWithMock = (email: string, password: string): { error: { message: string } | null } => {
+    // Cari officer dari daftar mock
     const savedOfficers = localStorage.getItem('belega_officers');
     const officersList: OfficerUser[] = savedOfficers ? JSON.parse(savedOfficers) : MOCK_OFFICERS;
-    const foundOfficer = officersList.find(o => o.email.toLowerCase() === email.toLowerCase());
+    const foundOfficer = officersList.find(
+      o => o.email.toLowerCase() === email.toLowerCase()
+    );
 
-    // Password validation in offline/mock mode
-    if (foundOfficer && foundOfficer.password) {
-      if (password !== foundOfficer.password && password !== 'password123') {
-        return { error: { message: 'Kata sandi yang Anda masukkan salah. Silakan coba lagi.' } };
-      }
-    } else if (email.toLowerCase().includes('admin')) {
-      const adminOfficer = officersList.find(o => o.role === 'admin');
-      const expectedPass = adminOfficer?.password || 'password123';
-      if (password !== expectedPass && password !== 'password123') {
-        return { error: { message: 'Kata sandi admin salah. Silakan coba lagi.' } };
-      }
+    if (!foundOfficer) {
+      return { error: { message: 'Email tidak terdaftar dalam sistem demo.' } };
     }
 
-    const savedTpsStr = localStorage.getItem('belega_tps_recap');
-    const localTpsList = savedTpsStr ? JSON.parse(savedTpsStr) : [];
-
-    const determinedRole: UserRole = mockRole || profileData?.role || (foundOfficer ? foundOfficer.role : (email.includes('admin') ? 'admin' : 'operator'));
-    
-    let determinedTpsId: string | null = mockTpsId !== undefined ? mockTpsId : (profileData?.tps_id || foundOfficer?.tps_id || null);
-    if (determinedRole === 'operator' && !determinedTpsId && localTpsList.length > 0) {
-      determinedTpsId = localTpsList[0].polling_station_id;
+    // Di mode demo, password di-set saat pembuatan akun dan tidak ada backdoor universal
+    if (foundOfficer.password && password !== foundOfficer.password) {
+      return { error: { message: 'Kata sandi yang Anda masukkan salah.' } };
     }
 
-    const assignedTpsObj = localTpsList.find((t: any) => t.polling_station_id === determinedTpsId);
-
-    const determinedName: string = mockName 
-      || (determinedRole === 'admin' ? (foundOfficer?.full_name || profileData?.full_name || 'I Gede Ketut (Ketua Panitia)') : (foundOfficer?.full_name || (assignedTpsObj ? `Petugas ${assignedTpsObj.code} (${assignedTpsObj.banjar_name})` : 'Petugas TPS 01')));
-
-    const mockUser = { id: profileData?.id || foundOfficer?.id || `usr-${determinedRole}-${Date.now()}`, email };
+    const mockUser = { id: foundOfficer.id, email };
     const mockProf: Profile = {
-      id: mockUser.id,
-      full_name: determinedName,
-      role: determinedRole,
-      tps_id: determinedTpsId,
+      id: foundOfficer.id,
+      full_name: foundOfficer.full_name,
+      role: foundOfficer.role as UserRole,
+      tps_id: foundOfficer.tps_id || null,
       email,
-      phone: profileData?.phone || foundOfficer?.phone,
+      phone: foundOfficer.phone,
       created_at: new Date().toISOString()
     };
 
     setUser(mockUser);
     setProfile(mockProf);
+    // Simpan ke localStorage HANYA untuk mode demo (bukan sumber kebenaran di produksi)
     localStorage.setItem('belega_auth_user', JSON.stringify(mockUser));
     localStorage.setItem('belega_auth_profile', JSON.stringify(mockProf));
     return { error: null };
+  };
+
+  // Entry point login yang dipanggil dari UI
+  const loginWithEmail = async (email: string, password: string) => {
+    if (isSupabaseConfigured) {
+      return loginWithSupabase(email, password);
+    } else {
+      // Mode demo offline — tidak ada Supabase
+      return loginWithMock(email, password);
+    }
   };
 
   const logout = async () => {
@@ -146,6 +164,7 @@ export function useAuth() {
     }
     setUser(null);
     setProfile(null);
+    setAuthError(null);
     localStorage.removeItem('belega_auth_user');
     localStorage.removeItem('belega_auth_profile');
   };
@@ -154,6 +173,7 @@ export function useAuth() {
     user,
     profile,
     loading,
+    authError,
     role: profile?.role || 'viewer',
     tpsId: profile?.tps_id || null,
     isAdmin: profile?.role === 'admin',

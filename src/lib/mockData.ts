@@ -216,12 +216,15 @@ export const calculateSummary = (
   };
 };
 
+// CATATAN KEAMANAN: Password petugas dikelola oleh Supabase Auth, bukan disimpan di sini.
+// Data ini hanya digunakan untuk mode demo offline (isSupabaseConfigured = false).
+// Di produksi, buat akun via Supabase Dashboard (Authentication > Users).
 export const MOCK_OFFICERS: OfficerUser[] = [
   {
     id: 'off-1',
     full_name: 'Ni Wayan Sari (Petugas TPS 01)',
     email: 'tps01@pilkel.belega.id',
-    password: 'password123',
+    // password tidak disimpan di source code
     phone: '081234567801',
     tps_id: 'a1111111-1111-1111-1111-111111111111',
     role: 'operator',
@@ -231,7 +234,6 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-2',
     full_name: 'I Made Sukerta (Petugas TPS 02)',
     email: 'tps02@pilkel.belega.id',
-    password: 'password123',
     phone: '081234567802',
     tps_id: 'a2222222-2222-2222-2222-222222222222',
     role: 'operator',
@@ -241,7 +243,6 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-3',
     full_name: 'I Ketut Suweta (Petugas TPS 03)',
     email: 'tps03@pilkel.belega.id',
-    password: 'password123',
     phone: '081234567803',
     tps_id: 'a3333333-3333-3333-3333-333333333333',
     role: 'operator',
@@ -251,7 +252,6 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-4',
     full_name: 'Ni Nyoman Rai (Petugas TPS 04)',
     email: 'tps04@pilkel.belega.id',
-    password: 'password123',
     phone: '081234567804',
     tps_id: 'a4444444-4444-4444-4444-444444444444',
     role: 'operator',
@@ -261,7 +261,6 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-5',
     full_name: 'I Wayan Budiana (Petugas TPS 05)',
     email: 'tps05@pilkel.belega.id',
-    password: 'password123',
     phone: '081234567805',
     tps_id: 'a5555555-5555-5555-5555-555555555555',
     role: 'operator',
@@ -271,7 +270,6 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-6',
     full_name: 'Ni Ketut Yanti (Petugas TPS 06)',
     email: 'tps06@pilkel.belega.id',
-    password: 'password123',
     phone: '081234567806',
     tps_id: 'a6666666-6666-6666-6666-666666666666',
     role: 'operator',

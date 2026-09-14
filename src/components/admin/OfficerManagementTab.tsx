@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { OfficerUser, TPSRecapItem, UserRole } from '../../types/database.types';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 
 interface OfficerManagementTabProps {
   officersList: OfficerUser[];
@@ -20,7 +21,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
   const [editingOfficer, setEditingOfficer] = useState<OfficerUser | null>(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'admin' | 'operator'>('operator');
   const [tpsId, setTpsId] = useState<string>(tpsList[0]?.polling_station_id || '');
@@ -48,7 +49,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
       setTpsId('');
       setEmail('');
     }
-    setPassword('password123');
+    setPassword('');
     setPhone('');
     setIsModalOpen(true);
   };
@@ -58,7 +59,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
     setRole(officer.role === 'admin' || !officer.tps_id ? 'admin' : 'operator');
     setFullName(officer.full_name);
     setEmail(officer.email);
-    setPassword(officer.password || 'password123');
+    setPassword(isSupabaseConfigured ? '' : (officer.password || ''));
     setPhone(officer.phone || '');
     setTpsId(officer.tps_id || '');
     setIsModalOpen(true);
@@ -281,7 +282,10 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
 
                     {/* Password */}
                     <td className="py-3 px-4 font-mono text-xs text-slate-500">
-                      {officer.password || 'password123'}
+                      {isSupabaseConfigured
+                        ? <span className="text-slate-400 italic">dikelola Supabase Auth</span>
+                        : (officer.password || <span className="text-slate-400 italic">tidak diset</span>)
+                      }
                     </td>
 
                     {/* Phone */}
@@ -438,19 +442,24 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
                 />
               </div>
 
-              {/* Password */}
+              {/* Password — hanya relevan di mode demo offline */}
               <div>
                 <label className="block font-bold text-xs uppercase tracking-wider text-slate-700 mb-1">
-                  Password Login *
+                  {isSupabaseConfigured ? 'Password (Dikelola Supabase Auth)' : 'Password Login *'}
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="password123"
-                  className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
+                {isSupabaseConfigured ? (
+                  <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
+                    Password petugas dikelola di <strong>Supabase Dashboard → Authentication → Users</strong>. Atur password di sana setelah menyimpan data ini.
+                  </p>
+                ) : (
+                  <input
+                    type="text"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Masukkan password demo"
+                    className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  />
+                )}
               </div>
 
               {/* Contact / Phone */}

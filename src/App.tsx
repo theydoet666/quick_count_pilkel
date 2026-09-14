@@ -90,12 +90,9 @@ export function App() {
 
   const handleLoginSubmit = async (
     email: string,
-    pass: string,
-    mockRole?: 'admin' | 'operator',
-    mockTpsId?: string | null,
-    mockName?: string
+    pass: string
   ) => {
-    const res = await loginWithEmail(email, pass, mockRole, mockTpsId, mockName);
+    const res = await loginWithEmail(email, pass);
     if (!res.error) {
       navigateTo('admin-dashboard');
     }

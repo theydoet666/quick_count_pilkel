@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { useRealtimeResults } from '../hooks/useRealtimeResults';
 import { VoteEntryModal } from '../components/admin/VoteEntryModal';
 import { TPSAuditLogModal } from '../components/admin/TPSAuditLogModal';
@@ -60,7 +61,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     || (role === 'operator' && tpsId ? officersList.find(o => o.tps_id === tpsId) : null)
     || (role === 'admin' ? officersList.find(o => o.role === 'admin') : null);
 
-  const isDefaultPassword = !currentOfficer?.password || currentOfficer?.password === 'password123';
+  // Peringatan password default hanya relevan di mode demo offline
+  const isDefaultPassword = !isSupabaseConfigured && (!currentOfficer?.password || currentOfficer?.password === 'password123');
 
   // Change Password State
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
@@ -76,15 +78,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     setChangePasswordError('');
 
-    if (!currentOfficer) {
-      setChangePasswordError('Data akun tidak ditemukan.');
-      return;
-    }
-
-    const expectedPass = currentOfficer.password || 'password123';
-    if (currentPasswordInput !== expectedPass && currentPasswordInput !== 'password123') {
-      setChangePasswordError('Kata sandi saat ini / lama tidak cocok.');
-      return;
+    if (isSupabaseConfigured) {
+      // Mode produksi: validasi password lama dilakukan oleh Supabase Auth saat login,
+      // bukan di sini. User yang sudah login pasti sudah terautentikasi.
+      // Kita langsung lanjut ke validasi password baru.
+    } else {
+      // Mode demo: validasi password lama dari localStorage
+      if (!currentOfficer) {
+        setChangePasswordError('Data akun tidak ditemukan.');
+        return;
+      }
+      const expectedPass = currentOfficer.password || '';
+      if (currentPasswordInput !== expectedPass) {
+        setChangePasswordError('Kata sandi saat ini tidak cocok.');
+        return;
+      }
     }
 
     if (newPasswordInput.length < 6) {
@@ -99,7 +107,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     setIsSubmittingPassword(true);
     try {
-      updateOfficer(currentOfficer.id, { password: newPasswordInput });
+      if (isSupabaseConfigured) {
+        // Mode produksi: ganti password via Supabase Auth (terenkripsi di server)
+        const { error } = await supabase.auth.updateUser({ password: newPasswordInput });
+        if (error) {
+          setIsSubmittingPassword(false);
+          setChangePasswordError(error.message || 'Gagal mengubah kata sandi.');
+          return;
+        }
+      } else {
+        // Mode demo: ganti password di localStorage saja
+        if (!currentOfficer) throw new Error('Data akun tidak ditemukan.');
+        const expectedPass = currentOfficer.password || '';
+        if (currentPasswordInput !== expectedPass) {
+          setIsSubmittingPassword(false);
+          setChangePasswordError('Kata sandi saat ini tidak cocok.');
+          return;
+        }
+        updateOfficer(currentOfficer.id, { password: newPasswordInput });
+      }
       setIsSubmittingPassword(false);
       setIsChangePasswordModalOpen(false);
       setPasswordUpdateSuccessMsg('Kata sandi Anda berhasil diperbarui! Akun Anda kini lebih aman.');

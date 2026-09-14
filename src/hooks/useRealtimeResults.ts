@@ -767,61 +767,29 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        // 1. Update Polling Station status, additional_voters & photo
-        const psUpdatePayload: any = {
-          status: newStatus || 'submitted',
-          evidence_photo_url: photoUrl !== undefined ? photoUrl : null,
-          updated_at: new Date().toISOString()
-        };
-        if (additionalVoters !== undefined) {
-          psUpdatePayload.additional_voters = additionalVoters;
+        // Gunakan RPC SECURITY DEFINER — otorisasi divalidasi di server, bukan client.
+        // Fungsi ini memverifikasi: pemanggil adalah operator/admin, TPS adalah miliknya,
+        // TPS belum locked, dan votes tidak negatif.
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('submit_tps_votes', {
+          p_tps_id: tpsId,
+          p_votes_cand1: votes1,
+          p_votes_cand2: votes2,
+          p_invalid_votes: invalid,
+          p_photo_url: photoUrl || null
+        });
+
+        if (rpcErr || (rpcResult && rpcResult.success === false)) {
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          console.error('submit_tps_votes RPC error:', errMsg);
         }
 
-        const { error: updateErr } = await supabase
-          .from('polling_stations')
-          .update(psUpdatePayload)
-          .eq('id', tpsId);
-
-        // Fallback retry if additional_voters column is not yet created in Supabase DB schema
-        if (updateErr && additionalVoters !== undefined) {
-          console.warn('Supabase polling_stations update with additional_voters failed (column might not exist in Supabase yet), retrying without additional_voters:', updateErr.message);
-          const basicPayload = {
-            status: newStatus || 'submitted',
-            evidence_photo_url: photoUrl !== undefined ? photoUrl : null,
-            updated_at: new Date().toISOString()
-          };
+        // Update additional_voters secara terpisah jika ada (field ini tidak ada di RPC)
+        if (additionalVoters !== undefined) {
           await supabase
             .from('polling_stations')
-            .update(basicPayload)
+            .update({ additional_voters: additionalVoters, updated_at: new Date().toISOString() })
             .eq('id', tpsId);
         }
-
-        // 2. Upsert Candidate Votes
-        if (candidatesList[0]) {
-          await supabase.from('vote_results').upsert({
-            polling_station_id: tpsId,
-            candidate_id: candidatesList[0].id,
-            votes: votes1,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'polling_station_id,candidate_id' });
-        }
-
-        if (candidatesList[1]) {
-          await supabase.from('vote_results').upsert({
-            polling_station_id: tpsId,
-            candidate_id: candidatesList[1].id,
-            votes: votes2,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'polling_station_id,candidate_id' });
-        }
-
-        // 3. Upsert Invalid Votes
-        await supabase.from('invalid_votes').upsert({
-          polling_station_id: tpsId,
-          count: invalid,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'polling_station_id' });
-
       } catch (err) {
         console.error('Failed to write votes to Supabase:', err);
       }
@@ -867,12 +835,19 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
-          .from('polling_stations')
-          .update({ status, updated_at: new Date().toISOString() })
-          .eq('id', tpsId);
+        // Gunakan RPC SECURITY DEFINER — hanya admin yang dapat memverifikasi/mengunci TPS.
+        // Validasi role dilakukan di server, tidak percaya client.
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('verify_tps', {
+          p_tps_id: tpsId,
+          p_status: status
+        });
+
+        if (rpcErr || (rpcResult && rpcResult.success === false)) {
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          console.error('verify_tps RPC error:', errMsg);
+        }
       } catch (err) {
-        console.error('Failed to update status on Supabase:', err);
+        console.error('Failed to update TPS status on Supabase:', err);
       }
     }
   }, [tpsList, candidatesList, recalculate, addAuditLog]);
@@ -908,7 +883,8 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         id: officerId,
         full_name: officerData.full_name,
         email: officerData.email,
-        password: officerData.password || 'password123',
+        // Password tidak disimpan di state client — hanya dikelola oleh Supabase Auth
+        password: undefined,
         phone: officerData.phone || '',
         tps_id: officerData.tps_id || null,
         role: officerData.role || 'operator',
@@ -957,7 +933,16 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('profiles').delete().eq('id', id);
+        // Gunakan RPC SECURITY DEFINER — validasi admin role dilakukan di server.
+        // Direct .delete() pada profiles tidak diperbolehkan oleh RLS baru kecuali via RPC ini.
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('delete_officer', {
+          p_officer_id: id
+        });
+
+        if (rpcErr || (rpcResult && rpcResult.success === false)) {
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          console.error('delete_officer RPC error:', errMsg);
+        }
       } catch (err) {
         console.error('Failed to delete officer on Supabase:', err);
       }

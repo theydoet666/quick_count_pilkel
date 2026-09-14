@@ -7,10 +7,7 @@ import { updateDynamicFavicon } from '../lib/dynamicFavicon';
 interface AdminLoginProps {
   onLogin: (
     email: string,
-    pass: string,
-    role?: 'admin' | 'operator',
-    tpsId?: string | null,
-    fullName?: string
+    pass: string
   ) => Promise<{ error: any }>;
   onBackToPublic: () => void;
 }
@@ -87,7 +84,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
           id: 'admin-main',
           full_name: 'I Gede Ketut (Ketua Panitia)',
           email: 'admin@pilkel.belega.id',
-          password: 'password123',
+          // Password tidak disimpan di sini — dikelola oleh Supabase Auth
           role: 'admin',
           created_at: new Date().toISOString()
         };
@@ -102,7 +99,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
             id: `op-${tps.polling_station_id}`,
             full_name: `Petugas ${tps.code} (${tps.banjar_name})`,
             email: `tps${(idx + 1) < 10 ? '0' + (idx + 1) : idx + 1}@pilkel.belega.id`,
-            password: 'password123',
+            // Password tidak disimpan di sini — dikelola oleh Supabase Auth
             tps_id: tps.polling_station_id,
             role: 'operator',
             created_at: new Date().toISOString()
@@ -167,10 +164,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
 
       const res = await onLogin(
         selectedOfficer.email,
-        password,
-        selectedOfficer.role,
-        selectedOfficer.tps_id,
-        selectedOfficer.full_name
+        password
       );
 
       setIsSubmitting(false);
@@ -192,17 +186,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
     }
   };
 
-  const handleQuickBypassLogin = async (officer: OfficerUser) => {
-    setIsSubmitting(true);
-    await onLogin(
-      officer.email,
-      officer.password || 'password123',
-      officer.role,
-      officer.tps_id,
-      officer.full_name
-    );
-    setIsSubmitting(false);
-  };
+  // handleQuickBypassLogin dihapus — tidak boleh ada bypass login tanpa password sungguhan
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 sm:p-6 select-none relative overflow-hidden bg-tv-grid">
@@ -458,55 +442,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
             )}
           </button>
         </form>
-
-        {/* Quick Testing Simulation Shortcuts */}
-        <div className="mt-4 pt-3.5 border-t border-slate-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              ⚡ Akses Cepat Simulasi 1-Klik
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {/* Quick Admin */}
-            <button
-              type="button"
-              onClick={() => {
-                const adminOff = officers.find(o => o.role === 'admin');
-                if (adminOff) handleQuickBypassLogin(adminOff);
-              }}
-              disabled={isSubmitting}
-              className="p-1.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-left transition-colors flex items-center gap-2 cursor-pointer shadow-2xs"
-            >
-              <div className="w-6 h-6 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-sm">admin_panel_settings</span>
-              </div>
-              <div className="min-w-0">
-                <div className="font-bold text-[10.5px] text-amber-950 truncate">Ketua Panitia</div>
-                <div className="text-[9.5px] text-amber-700 truncate">Akses Penuh</div>
-              </div>
-            </button>
-
-            {/* Quick Operator 1 */}
-            <button
-              type="button"
-              onClick={() => {
-                const firstOp = officers.find(o => o.role === 'operator');
-                if (firstOp) handleQuickBypassLogin(firstOp);
-              }}
-              disabled={isSubmitting}
-              className="p-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-left transition-colors flex items-center gap-2 cursor-pointer shadow-2xs"
-            >
-              <div className="w-6 h-6 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-sm">how_to_vote</span>
-              </div>
-              <div className="min-w-0">
-                <div className="font-bold text-[10.5px] text-emerald-950 truncate">Petugas TPS 01</div>
-                <div className="text-[9.5px] text-emerald-700 truncate">Entry Suara</div>
-              </div>
-            </button>
-          </div>
-        </div>
 
         {/* Back to Public Link */}
         <div className="mt-4 text-center">
