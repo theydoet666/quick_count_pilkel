@@ -1,7 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <rect width="48" height="48" rx="12" fill="#047857"/>
-  <rect x="10" y="16" width="28" height="24" rx="4" fill="#ffffff" opacity="0.95"/>
-  <path d="M16 22h16M16 28h16M16 34h10" stroke="#047857" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="34" cy="34" r="5" fill="#f59e0b"/>
-  <path d="M32.5 34l1 1 2.5-2.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#15803d"/>
+      <stop offset="50%" stop-color="#064e3b"/>
+      <stop offset="100%" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="dropGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Ring with Gold Border -->
+  <circle cx="64" cy="64" r="62" fill="url(#greenGrad)" stroke="url(#goldGrad)" stroke-width="4"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="#fef08a" stroke-width="1.5" stroke-dasharray="3,2"/>
+  
+  <!-- Inner Background Shield -->
+  <circle cx="64" cy="64" r="46" fill="url(#shieldGrad)" stroke="url(#goldGrad)" stroke-width="2"/>
+
+  <!-- Balinese Temple / Candi Bentar / Padmasana Silhouette in Center -->
+  <!-- Base Tier -->
+  <rect x="36" y="86" width="56" height="5" rx="1.5" fill="#78350f"/>
+  <rect x="42" y="80" width="44" height="6" rx="1" fill="#b45309"/>
+  <rect x="48" y="74" width="32" height="6" rx="1" fill="#d97706"/>
+
+  <!-- Ballot Box in front with Red-White Ribbon -->
+  <rect x="46" y="58" width="36" height="24" rx="3" fill="#064e3b" stroke="url(#goldGrad)" stroke-width="1.5" filter="url(#dropGlow)"/>
+  <!-- Slot -->
+  <rect x="54" y="62" width="20" height="2.5" rx="1" fill="#fef08a"/>
+  <!-- Ballot Paper going in -->
+  <path d="M57 52 L71 52 L69 63 L59 63 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.8"/>
+  <rect x="61" y="55" width="6" height="4" rx="0.5" fill="#dc2626"/>
+
+  <!-- Balinese Winged Meru/Candi Crown behind -->
+  <path d="M64 26 L69 36 L76 38 L71 44 L73 52 L64 47 L55 52 L57 44 L52 38 L59 36 Z" fill="url(#goldGrad)" stroke="#78350f" stroke-width="1"/>
+  
+  <!-- Star on top -->
+  <polygon points="64,18 66.5,23 72,23.5 68,27.5 69.5,33 64,30 58.5,33 60,27.5 56,23.5 61.5,23" fill="#fef08a" stroke="#d97706" stroke-width="0.8"/>
+
+  <!-- Circular Outer Text Ribbon Details -->
+  <!-- Padi & Kapas Wreath -->
+  <path d="M22 64 C22 42 38 24 64 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1,5"/>
+  <path d="M106 64 C106 42 90 24 64 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1,5"/>
+  
+  <!-- Ribbon banner at bottom -->
+  <path d="M30 96 Q64 106 98 96 L94 106 Q64 116 34 106 Z" fill="#dc2626" stroke="#fef08a" stroke-width="1.2"/>
+  <text x="64" y="104" text-anchor="middle" font-family="'IBM Plex Sans', sans-serif" font-weight="900" font-size="7" fill="#ffffff" letter-spacing="0.8">DESA BELEGA</text>
 </svg>
