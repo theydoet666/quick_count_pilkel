@@ -858,6 +858,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           tpsList={tpsList}
           candidates={candidatesList}
           settings={electionSettings}
+          ketuaPanitiaName={officersList.find(o => o.role === 'admin')?.full_name || (role === 'admin' ? fullName : 'Ketua Panitia Pemilihan')}
+          officers={officersList}
           onClose={() => setIsPrintModalOpen(false)}
         />
       )}

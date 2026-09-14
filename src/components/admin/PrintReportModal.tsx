@@ -1,11 +1,13 @@
 import React from 'react';
-import { ElectionSummary, TPSRecapItem, ElectionSettings, Candidate } from '../../types/database.types';
+import { ElectionSummary, TPSRecapItem, ElectionSettings, Candidate, OfficerUser } from '../../types/database.types';
 
 interface PrintReportModalProps {
   summary: ElectionSummary;
   tpsList: TPSRecapItem[];
   candidates: Candidate[];
   settings: ElectionSettings;
+  ketuaPanitiaName?: string;
+  officers?: OfficerUser[];
   onClose: () => void;
 }
 
@@ -14,11 +16,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   tpsList,
   candidates,
   settings,
+  ketuaPanitiaName,
+  officers,
   onClose
 }) => {
   const handlePrint = () => {
     window.print();
   };
+
+  const adminOfficer = officers?.find(o => o.role === 'admin');
+  const resolvedKetuaName = ketuaPanitiaName || adminOfficer?.full_name || 'Ketua Panitia Pemilihan';
 
   const totalDpt = tpsList.reduce((sum, t) => sum + (Number(t.registered_voters) || 0), 0);
   const totalDptb = tpsList.reduce((sum, t) => sum + (Number(t.additional_voters) || 0), 0);
@@ -206,7 +213,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               </div>
               <div>
                 <p className="font-semibold text-slate-700 mb-14">Ketua Panitia Pemilihan</p>
-                <p className="font-bold underline">( I Gede Ketut )</p>
+                <p className="font-bold underline">( {resolvedKetuaName} )</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-700 mb-14">Saksi Pasangan Calon 02</p>
