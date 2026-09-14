@@ -1,0 +1,11 @@
+# Robots.txt untuk Hitung Cepat Pilkel Desa Belega 2026
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /operator
+
+# Googlebot spesifik
+User-agent: Googlebot
+Allow: /
+
+Sitemap: http://pilkel.belega.id/sitemap.xml

@@ -1,0 +1,21 @@
+{
+  "name": "Hitung Cepat Pilkel Desa Belega 2026",
+  "short_name": "Pilkel Belega",
+  "description": "Sistem Informasi & Hasil Hitung Cepat Pemilihan Perbekel Desa Belega 2026 secara Real-time.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0F14",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
