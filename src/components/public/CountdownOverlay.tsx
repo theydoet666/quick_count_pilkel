@@ -40,6 +40,27 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({
       }) + ' WITA'
     : 'Pukul 13:00 WITA';
 
+  // Format Announcement Notice Dynamically from Database Date & Time
+  const getAnnouncementText = () => {
+    if (electionSettings.counting_start_time) {
+      try {
+        const d = new Date(electionSettings.counting_start_time);
+        const dayName = d.toLocaleDateString('id-ID', { weekday: 'long' });
+        const fullDate = d.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const timeStr = d.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }).replace(':', '.');
+        return `Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada Hari ${dayName}, ${fullDate} pukul ${timeStr} WITA.`;
+      } catch {}
+    }
+    return 'Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada pukul 13.00 WITA.';
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-[#070b12]/80 backdrop-blur-md animate-fadeIn">
       
@@ -87,14 +108,13 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({
         </div>
 
         {/* Official Announcement Text */}
-        <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-3.5 sm:p-4 mb-5 text-slate-200 text-xs sm:text-sm leading-relaxed text-center">
-          <div className="flex items-center justify-center gap-1.5 text-amber-400 font-bold text-xs uppercase tracking-wider mb-1">
+        <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-5 text-slate-200 text-xs sm:text-sm leading-relaxed text-center shadow-inner">
+          <div className="flex items-center justify-center gap-1.5 text-amber-400 font-bold text-xs uppercase tracking-wider mb-1.5">
             <span className="material-symbols-outlined text-base">campaign</span>
             <span>Pengumuman Panitia Pemilihan</span>
           </div>
-          <p className="font-medium text-slate-100">
-            {electionSettings.counting_notice ||
-              `Perhitungan suara TPS resmi dibuka oleh Panitia Pemilihan pada ${formattedStartTime}.`}
+          <p className="font-bold text-slate-100 text-sm sm:text-base leading-snug">
+            {getAnnouncementText()}
           </p>
         </div>
 
