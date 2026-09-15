@@ -282,22 +282,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* User Profile Card */}
-      <div className="p-4 mx-3 my-3 rounded-xl bg-[#111a12] border border-slate-700/50 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-emerald-600/30 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shrink-0 font-bold text-sm">
-          {fullName.charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold text-white truncate leading-tight">
-            {fullName}
-          </p>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`px-1.5 py-0.2 text-[10px] font-black rounded uppercase tracking-wider ${
-              role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-200'
-            }`}>
-              {role === 'admin' ? 'Ketua Admin' : 'Operator TPS'}
-            </span>
+      <div className="p-3.5 mx-3 my-3 rounded-xl bg-[#111a12] border border-slate-700/50 flex flex-col gap-2.5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-emerald-600/30 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shrink-0 font-bold text-sm">
+            {fullName.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-white truncate leading-tight">
+              {fullName}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`px-1.5 py-0.2 text-[10px] font-black rounded uppercase tracking-wider ${
+                role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-200'
+              }`}>
+                {role === 'admin' ? 'Ketua Admin' : 'Operator TPS'}
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Quick Change Password in Sidebar */}
+        <button
+          onClick={() => {
+            setIsChangePasswordModalOpen(true);
+            setCurrentPasswordInput('');
+            setNewPasswordInput('');
+            setConfirmPasswordInput('');
+            setChangePasswordError('');
+            setIsMobileMenuOpen(false);
+          }}
+          className="w-full py-1.5 px-2.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 rounded-lg text-slate-200 hover:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-sm text-emerald-400">key</span>
+          <span>Ubah Kata Sandi</span>
+        </button>
       </div>
 
       {/* Navigation Links */}
@@ -342,7 +360,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="p-3 border-t border-slate-700/60 space-y-2 bg-[#121c13]">
         <button
           onClick={onViewPublic}
-          className="w-full px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+          className="w-full px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
         >
           <span className="material-symbols-outlined text-base text-amber-400">tv</span>
           <span>Buka Layar Publik</span>
@@ -350,7 +368,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <button
           onClick={onLogout}
-          className="w-full px-3.5 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-700/40 rounded-xl text-red-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+          className="w-full px-3.5 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-700/40 rounded-xl text-red-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
         >
           <span className="material-symbols-outlined text-base text-red-400">logout</span>
           <span>Keluar Sesi</span>
@@ -372,7 +390,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 focus:outline-none"
+            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 focus:outline-none cursor-pointer"
             title="Buka Menu Navigasi"
           >
             <span className="material-symbols-outlined text-2xl">menu</span>
@@ -387,7 +405,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-xs sm:text-sm text-white truncate max-w-[160px] sm:max-w-xs">
+              <h1 className="font-bold text-xs sm:text-sm text-white truncate max-w-[130px] sm:max-w-xs">
                 {electionSettings.title}
               </h1>
               <p className="text-[10px] text-amber-300 truncate">
@@ -399,8 +417,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex items-center gap-1.5 shrink-0">
           <button
+            onClick={() => {
+              setIsChangePasswordModalOpen(true);
+              setCurrentPasswordInput('');
+              setNewPasswordInput('');
+              setConfirmPasswordInput('');
+              setChangePasswordError('');
+            }}
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600/60 text-slate-200 hover:text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+            title="Ubah Kata Sandi Akun"
+          >
+            <span className="material-symbols-outlined text-base text-emerald-400">key</span>
+            <span className="hidden sm:inline">Sandi</span>
+          </button>
+
+          <button
             onClick={onViewPublic}
-            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm"
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
             title="Lihat Layar Publik"
           >
             <span className="material-symbols-outlined text-base">tv</span>
@@ -409,7 +442,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-lg bg-red-950/60 border border-red-700/50 text-red-300 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg bg-red-950/60 border border-red-700/50 text-red-300 hover:text-white transition-colors cursor-pointer"
             title="Keluar"
           >
             <span className="material-symbols-outlined text-base">logout</span>

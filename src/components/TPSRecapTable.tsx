@@ -243,7 +243,7 @@ export const TPSRecapTable: React.FC<TPSRecapTableProps> = ({
           <TableColGroup />
           <thead className="bg-[#0b0f17] text-slate-400 font-label-sm text-[11px] md:text-xs uppercase tracking-wider border-b border-slate-800 shadow-sm">
             <tr>
-              <th className="py-2.5 px-3 font-bold truncate">Lokasi / Banjar</th>
+              <th className="py-2.5 px-3 font-bold truncate">Lokasi TPS</th>
               <th className="py-2.5 px-2 text-center font-bold truncate">Suara Sah</th>
               <th className="py-2.5 px-2 text-center font-bold bg-rose-950/30 text-rose-300 truncate">
                 01 {c1Name}

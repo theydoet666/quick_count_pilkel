@@ -164,11 +164,11 @@ const AnimatedCandidateCard: React.FC<{
             </div>
           </div>
 
-          {/* Banjar Leading Count & Margin Delta */}
+          {/* TPS Leading Count & Margin Delta */}
           <div className="flex justify-between items-center mt-2.5 text-xs font-semibold text-slate-300 flex-wrap gap-1">
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-xs text-amber-400">location_on</span>
-              Unggul di {candidate.banjar_leading_count} Banjar
+              Unggul di {candidate.banjar_leading_count} TPS
             </span>
             {isLeading ? (
               <span className="text-amber-300 font-bold tabular-nums flex items-center gap-0.5">
