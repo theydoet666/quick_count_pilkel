@@ -306,6 +306,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.invalid_votes;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 
 -- 13. ROW LEVEL SECURITY (RLS) POLICIES
+-- CATATAN KEAMANAN: Seluruh RLS, RPC, dan Security Policy resmi dikelola
+-- secara ketat melalui file migrasi:
+-- supabase/migrations/20260917000002_security_hardening.sql
+-- JANGAN MENAMBAHKAN POLICY PERMISIF "USING (true)" UNTUK OPERASI TULIS (INSERT/UPDATE/DELETE).
 ALTER TABLE public.elections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.election_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
@@ -314,31 +318,6 @@ ALTER TABLE public.vote_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invalid_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
-
--- Allow public read & authenticated write
-CREATE POLICY "Public read elections" ON public.elections FOR SELECT USING (true);
-CREATE POLICY "Allow all on elections" ON public.elections FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read election_settings" ON public.election_settings FOR SELECT USING (true);
-CREATE POLICY "Allow all on election_settings" ON public.election_settings FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read candidates" ON public.candidates FOR SELECT USING (true);
-CREATE POLICY "Allow all on candidates" ON public.candidates FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read polling_stations" ON public.polling_stations FOR SELECT USING (true);
-CREATE POLICY "Allow all on polling_stations" ON public.polling_stations FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read vote_results" ON public.vote_results FOR SELECT USING (true);
-CREATE POLICY "Allow all on vote_results" ON public.vote_results FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read invalid_votes" ON public.invalid_votes FOR SELECT USING (true);
-CREATE POLICY "Allow all on invalid_votes" ON public.invalid_votes FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Allow all on profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public read audit_logs" ON public.audit_logs FOR SELECT USING (true);
-CREATE POLICY "Allow all on audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- 14. DEFAULT INITIAL DATA (Clean Real Setup)
 INSERT INTO public.elections (id, name, location, status)

@@ -45,9 +45,11 @@
   ExpiresByType image/x-icon "access plus 1 year"
 </IfModule>
 
-# 4. Header Keamanan Web
+# 4. Header Keamanan Web (Security Headers)
 <IfModule mod_headers.c>
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-XSS-Protection "1; mode=block"
-  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set Permissions-Policy "camera=*, microphone=(), geolocation=()"
 </IfModule>

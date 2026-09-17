@@ -3,12 +3,14 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserRole, Profile, OfficerUser } from '../types/database.types';
 import { MOCK_OFFICERS } from '../lib/mockData';
 
-// Unique Device Session Token Management
+// Unique Device Session Token Management (Kriptografis UUID)
 const getDeviceSessionToken = (): string => {
   if (typeof window === 'undefined') return 'server-token';
   let token = sessionStorage.getItem('belega_device_session_token');
   if (!token) {
-    token = 'sess-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    token = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : 'sess-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
     sessionStorage.setItem('belega_device_session_token', token);
   }
   return token;
@@ -110,7 +112,7 @@ export function useAuth() {
 
   const fetchProfile = async (userId: string, userEmail?: string): Promise<boolean> => {
     try {
-      // 1. Coba cari profile berdasarkan id (auth.users.id)
+      // 1. Ambil profile murni dari database Supabase (sumber otorisasi terpercaya)
       let { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -131,87 +133,20 @@ export function useAuth() {
         }
       }
 
-      // 3. Resolusi & Fallback Cerdas untuk akun resmi pilkel (admin@... atau tpsXX@...)
-      const emailLower = (userEmail || data?.email || '').toLowerCase();
-      if (emailLower.startsWith('tps')) {
-        const numMatch = emailLower.match(/tps0*(\d+)/);
-        const tpsNum = numMatch ? parseInt(numMatch[1], 10) : null;
-        
-        if (tpsNum) {
-          try {
-            const { data: tpsData } = await supabase.from('polling_stations').select('id, code, banjar_name');
-            if (tpsData && tpsData.length > 0) {
-              const matchedTps = tpsData.find(t => {
-                const codeNum = parseInt(t.code.replace(/\D/g, ''), 10);
-                return codeNum === tpsNum;
-              });
-              if (matchedTps) {
-                if (!data) {
-                  data = {
-                    id: userId,
-                    full_name: `Petugas Operator TPS ${tpsNum < 10 ? '0' + tpsNum : tpsNum} (${matchedTps.banjar_name})`,
-                    role: 'operator',
-                    tps_id: matchedTps.id,
-                    email: userEmail,
-                    created_at: new Date().toISOString()
-                  };
-                } else {
-                  // Pastikan tps_id konsisten dengan nomor TPS di email
-                  data.tps_id = matchedTps.id;
-                  if (!data.email && userEmail) data.email = userEmail;
-                  if (!data.role) data.role = 'operator';
-                }
-              }
-            }
-          } catch {}
-        }
-      } else if (emailLower.startsWith('admin@')) {
-        if (!data) {
-          data = {
-            id: userId,
-            full_name: 'I Gede Ketut (Ketua Panitia)',
-            role: 'admin',
-            email: userEmail,
-            created_at: new Date().toISOString()
-          };
-        } else {
-          data.role = 'admin';
-          data.tps_id = null;
-          if (!data.email && userEmail) data.email = userEmail;
-        }
-      }
-
       if (!data) {
-        console.warn('fetchProfile: profil tidak ditemukan:', error?.message);
+        console.warn('fetchProfile: profil tidak ditemukan di database:', error?.message);
         setProfile(null);
         setUser(null);
-        setAuthError('Profil pengguna tidak ditemukan.');
+        setAuthError('Profil pengguna tidak terdaftar di sistem.');
         if (isSupabaseConfigured) {
           await supabase.auth.signOut();
         }
         return false;
-      } else {
-        // Sync profile to database so public.profiles always matches auth.users exactly
-        if (isSupabaseConfigured && userEmail) {
-          try {
-            await supabase
-              .from('profiles')
-              .upsert({
-                id: userId,
-                email: userEmail,
-                full_name: data.full_name,
-                role: data.role,
-                tps_id: data.tps_id
-              });
-          } catch (syncErr) {
-            console.debug('Profile sync upsert error:', syncErr);
-          }
-        }
-
-        setProfile(data as Profile);
-        setAuthError(null);
-        return true;
       }
+
+      setProfile(data as Profile);
+      setAuthError(null);
+      return true;
     } catch (err) {
       console.error('fetchProfile: unexpected error:', err);
       setProfile(null);
@@ -237,16 +172,14 @@ export function useAuth() {
         return { error: { message: error.message || 'Email atau kata sandi salah. Silakan coba lagi.' } };
       }
       if (data.user) {
-        // 1. Klaim Sesi via RPC claim_operator_session
+        // 1. Klaim Sesi via RPC claim_operator_session (identitas diverifikasi di server via auth.uid())
         const sessionToken = getDeviceSessionToken();
         const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Web Browser';
         
         try {
           const { data: claimRes, error: claimErr } = await supabase.rpc('claim_operator_session', {
-            p_officer_id: data.user.id,
             p_session_token: sessionToken,
-            p_device_info: userAgent,
-            p_email: data.user.email || email
+            p_device_info: userAgent
           });
 
           if (claimErr || (claimRes && claimRes.success === false)) {
@@ -379,10 +312,9 @@ export function useAuth() {
     const officerId = profile?.id || user?.id;
     const userEmail = user?.email || profile?.email;
 
-    if (isSupabaseConfigured && officerId) {
+    if (isSupabaseConfigured) {
       try {
         await supabase.rpc('release_operator_session', {
-          p_officer_id: officerId,
           p_session_token: sessionToken
         });
       } catch (err) {

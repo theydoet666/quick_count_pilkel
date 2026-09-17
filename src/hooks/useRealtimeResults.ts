@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { ElectionSummary, TPSRecapItem, TPSStatus, ElectionSettings, Candidate, OfficerUser, AuditLog, Profile } from '../types/database.types';
 import { MOCK_ELECTION, MOCK_TPS_RECAP, MOCK_CANDIDATES, DEFAULT_ELECTION_SETTINGS, MOCK_OFFICERS, MOCK_AUDIT_LOGS, calculateSummary } from '../lib/mockData';
 import { updateDynamicFavicon } from '../lib/dynamicFavicon';
+import { showAlert } from '../lib/alerts';
 
 // Cross-tab Realtime Sync Channel (Instant sync across browser tabs/windows on the same machine)
 const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
@@ -869,34 +870,50 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        // Gunakan RPC SECURITY DEFINER — otorisasi divalidasi di server, bukan client.
-        // Fungsi ini memverifikasi: pemanggil adalah operator/admin, TPS adalah miliknya,
-        // TPS belum locked, dan votes tidak negatif.
         const { data: rpcResult, error: rpcErr } = await supabase.rpc('submit_tps_votes', {
           p_tps_id: tpsId,
           p_votes_cand1: votes1,
           p_votes_cand2: votes2,
           p_invalid_votes: invalid,
-          p_photo_url: photoUrl || null
+          p_evidence_photo_url: photoUrl || null,
+          p_new_status: newStatus || 'submitted',
+          p_additional_voters: additionalVoters !== undefined ? additionalVoters : null
         });
 
         if (rpcErr || (rpcResult && rpcResult.success === false)) {
-          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Gagal menyimpan suara ke server.';
           console.error('submit_tps_votes RPC error:', errMsg);
+          
+          // S-1: Rollback local optimistic state & tampilkan error ke user
+          if (prevTps) {
+            setTpsList(curr => {
+              const rolledBack = curr.map(item => item.polling_station_id === tpsId ? prevTps : item);
+              localStorage.setItem('belega_tps_recap', JSON.stringify(rolledBack));
+              recalculate(rolledBack, candidatesList);
+              notifySync();
+              return rolledBack;
+            });
+          }
+          showAlert.error('Gagal Menyimpan Suara', errMsg);
+          return { success: false, error: errMsg };
         }
-
-        // Update additional_voters secara terpisah jika ada (field ini tidak ada di RPC)
-        if (additionalVoters !== undefined) {
-          await supabase
-            .from('polling_stations')
-            .update({ additional_voters: additionalVoters, updated_at: new Date().toISOString() })
-            .eq('id', tpsId);
-        }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to write votes to Supabase:', err);
+        if (prevTps) {
+          setTpsList(curr => {
+            const rolledBack = curr.map(item => item.polling_station_id === tpsId ? prevTps : item);
+            localStorage.setItem('belega_tps_recap', JSON.stringify(rolledBack));
+            recalculate(rolledBack, candidatesList);
+            notifySync();
+            return rolledBack;
+          });
+        }
+        showAlert.error('Koneksi Gagal', 'Tidak dapat terhubung ke server Supabase.');
+        return { success: false, error: err?.message };
       }
     }
-  }, [candidatesList, recalculate, addAuditLog]);
+    return { success: true };
+  }, [tpsList, candidatesList, recalculate, addAuditLog]);
 
   const updateTPSStatusLocal = useCallback(async (
     tpsId: string,
@@ -937,21 +954,44 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
 
     if (isSupabaseConfigured) {
       try {
-        // Gunakan RPC SECURITY DEFINER — hanya admin yang dapat memverifikasi/mengunci TPS.
-        // Validasi role dilakukan di server, tidak percaya client.
         const { data: rpcResult, error: rpcErr } = await supabase.rpc('verify_tps', {
           p_tps_id: tpsId,
           p_status: status
         });
 
         if (rpcErr || (rpcResult && rpcResult.success === false)) {
-          const errMsg = rpcErr?.message || rpcResult?.error || 'Unknown error';
+          const errMsg = rpcErr?.message || rpcResult?.error || 'Gagal memperbarui status TPS.';
           console.error('verify_tps RPC error:', errMsg);
+          
+          // Rollback local state
+          if (prevTps) {
+            setTpsList(curr => {
+              const rolledBack = curr.map(item => item.polling_station_id === tpsId ? prevTps : item);
+              localStorage.setItem('belega_tps_recap', JSON.stringify(rolledBack));
+              recalculate(rolledBack, candidatesList);
+              notifySync();
+              return rolledBack;
+            });
+          }
+          showAlert.error('Gagal Memperbarui Status', errMsg);
+          return { success: false, error: errMsg };
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to update TPS status on Supabase:', err);
+        if (prevTps) {
+          setTpsList(curr => {
+            const rolledBack = curr.map(item => item.polling_station_id === tpsId ? prevTps : item);
+            localStorage.setItem('belega_tps_recap', JSON.stringify(rolledBack));
+            recalculate(rolledBack, candidatesList);
+            notifySync();
+            return rolledBack;
+          });
+        }
+        showAlert.error('Koneksi Gagal', 'Gagal memperbarui status ke database.');
+        return { success: false, error: err?.message };
       }
     }
+    return { success: true };
   }, [tpsList, candidatesList, recalculate, addAuditLog]);
 
   // --- OFFICER CRUD METHODS ---

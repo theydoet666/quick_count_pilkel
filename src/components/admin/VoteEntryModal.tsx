@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TPSRecapItem, CandidateSummary, TPSStatus } from '../../types/database.types';
 import { showAlert } from '../../lib/alerts';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 interface VoteEntryModalProps {
   tps: TPSRecapItem | null;
@@ -51,12 +52,12 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
 
   if (!tps) return null;
 
-  // Calculation Logic
+  // Calculation helpers
   const dptPokok = tps.registered_voters || 0;
   const dptTambahan = additionalVoters || 0;
-  const totalHakPilih = dptPokok + dptTambahan; // DPT + DPT Tambahan
+  const totalHakPilih = dptPokok + dptTambahan; // Total DPT + DPTb
 
-  const totalValidVotes = votes1 + votes2; // Suara Calon 1 + Suara Calon 2
+  const totalValidVotes = votes1 + votes2;
   const totalEnteredVotes = totalValidVotes + invalidVotes; // Total Suara Masuk
   const sisaHakPilih = Math.max(0, totalHakPilih - totalEnteredVotes);
   const participationPct = totalHakPilih > 0 ? ((totalEnteredVotes / totalHakPilih) * 100).toFixed(1) : '0';
@@ -77,55 +78,110 @@ export const VoteEntryModal: React.FC<VoteEntryModalProps> = ({
   const cand1Pct = totalValidVotes > 0 ? ((votes1 / totalValidVotes) * 100).toFixed(1) : '0';
   const cand2Pct = totalValidVotes > 0 ? ((votes2 / totalValidVotes) * 100).toFixed(1) : '0';
 
-  // Process & compress photo (especially for high-res mobile phone camera photos)
-  const processImageFile = (file: File) => {
+  // S-3: Process, compress & upload photo to Supabase Storage
+  const processAndUploadPhoto = async (file: File) => {
+    // Validasi tipe file (MIME)
+    if (!file.type.startsWith('image/')) {
+      showAlert.error('File Tidak Valid', 'Hanya file gambar (JPG, PNG, WEBP) yang diperbolehkan.');
+      return;
+    }
+
+    // Validasi ukuran file (< 5 MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert.error('Ukuran Terlalu Besar', 'Ukuran foto maksimal 5 MB.');
+      return;
+    }
+
     setIsProcessingPhoto(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_DIM = 1200;
-        let width = img.width;
-        let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height = Math.round((height * MAX_DIM) / width);
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width = Math.round((width * MAX_DIM) / height);
-            height = MAX_DIM;
-          }
+    try {
+      // 1. Kompres gambar di canvas untuk menghemat bandwidth
+      const compressedBlob = await new Promise<Blob | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_DIM = 1400;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_DIM) {
+                height = Math.round((height * MAX_DIM) / width);
+                width = MAX_DIM;
+              }
+            } else {
+              if (height > MAX_DIM) {
+                width = Math.round((width * MAX_DIM) / height);
+                height = MAX_DIM;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
+            } else {
+              resolve(null);
+            }
+          };
+          img.onerror = () => resolve(null);
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+
+      if (!compressedBlob) {
+        throw new Error('Gagal memproses gambar');
+      }
+
+      if (isSupabaseConfigured) {
+        // Upload ke Supabase Storage bucket 'evidence-photos'
+        const fileExt = 'jpg';
+        const fileName = `${tps.polling_station_id}_${Date.now()}.${fileExt}`;
+        const filePath = `c1_plano/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('evidence-photos')
+          .upload(filePath, compressedBlob, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+
+        if (uploadError) {
+          throw uploadError;
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
-          setPhotoUrl(compressedDataUrl);
-        }
-        setIsProcessingPhoto(false);
-      };
-      img.onerror = () => {
-        setIsProcessingPhoto(false);
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.onerror = () => {
+        const { data: publicUrlData } = supabase.storage
+          .from('evidence-photos')
+          .getPublicUrl(filePath);
+
+        setPhotoUrl(publicUrlData.publicUrl);
+        showAlert.toast('Foto bukti C1 berhasil diunggah ke storage!', 'success');
+      } else {
+        // Fallback demo mode: gunakan DataURL
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPhotoUrl(e.target?.result as string);
+        };
+        reader.readAsDataURL(compressedBlob);
+      }
+    } catch (err: any) {
+      console.error('Photo upload error:', err);
+      showAlert.error('Gagal Unggah Foto', err?.message || 'Terjadi kesalahan saat mengunggah foto bukti.');
+    } finally {
       setIsProcessingPhoto(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      processImageFile(file);
+      processAndUploadPhoto(file);
     }
   };
 
