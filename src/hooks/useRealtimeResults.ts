@@ -133,45 +133,11 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         updateDynamicFavicon(mappedSettings.logo_url, `Hitung Cepat ${mappedSettings.title}`);
       }
 
-      // 3. Fetch Officers (Profiles) from Supabase
+      // 3. Fetch Profiles from Supabase (will be reconciled right after loading TPS)
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
-
-      if (profilesData && profilesData.length > 0) {
-        // Deduplikasi akun: utamakan profil terbaru berdasarkan email atau ID
-        const seenEmails = new Set<string>();
-        const seenTps = new Set<string>();
-        const uniqueOps: OfficerUser[] = [];
-
-        profilesData.forEach(p => {
-          const emailClean = (p.email || '').toLowerCase().trim();
-          // Lewati jika email duplikat
-          if (emailClean && seenEmails.has(emailClean)) return;
-          if (emailClean) seenEmails.add(emailClean);
-
-          uniqueOps.push({
-            id: p.id,
-            full_name: p.full_name,
-            email: p.email || '',
-            phone: p.phone || '',
-            tps_id: p.tps_id || '',
-            role: (p.role === 'admin' ? 'admin' : 'operator') as any,
-            created_at: p.created_at
-          });
-        });
-
-        // Urutkan admin di atas, lalu TPS 01 s/d TPS 09
-        uniqueOps.sort((a, b) => {
-          if (a.role === 'admin') return -1;
-          if (b.role === 'admin') return 1;
-          return (a.email || '').localeCompare(b.email || '');
-        });
-
-        setOfficersList(uniqueOps);
-        localStorage.setItem('belega_officers', JSON.stringify(uniqueOps));
-      }
 
       // 4. Fetch Summary and Recap via RPC or tables
       const [summaryRes, recapRes] = await Promise.all([
@@ -206,6 +172,13 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
             ...t,
             additional_voters: fromDb !== undefined ? fromDb : (fromSaved !== undefined ? fromSaved : (t.additional_voters || 0))
           };
+        });
+
+        // Urutkan TPS numerik (TPS 01 s/d TPS 09)
+        loadedTps.sort((a, b) => {
+          const numA = parseInt(a.code.replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt(b.code.replace(/\D/g, ''), 10) || 0;
+          return numA - numB;
         });
 
         setTpsList(loadedTps);
@@ -263,10 +236,84 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
             };
           });
 
+          mappedTps.sort((a, b) => {
+            const numA = parseInt(a.code.replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt(b.code.replace(/\D/g, ''), 10) || 0;
+            return numA - numB;
+          });
+
           loadedTps = mappedTps;
           setTpsList(mappedTps);
           localStorage.setItem('belega_tps_recap', JSON.stringify(mappedTps));
         }
+      }
+
+      // Reconcile officer profiles with loadedTps to guarantee 100% accurate TPS assignment & naming
+      if (profilesData && profilesData.length > 0) {
+        const seenEmails = new Set<string>();
+        const reconciledOps: OfficerUser[] = [];
+
+        profilesData.forEach(p => {
+          const emailClean = (p.email || '').toLowerCase().trim();
+          if (emailClean && seenEmails.has(emailClean)) return;
+          if (emailClean) seenEmails.add(emailClean);
+
+          let assignedTpsId = p.tps_id || '';
+          let displayName = p.full_name;
+
+          // Cek apakah akun email adalah akun resmi TPS (misal tps01@... atau tps9@...)
+          const tpsNumMatch = emailClean.match(/tps0*(\d+)/i);
+          if (tpsNumMatch && tpsNumMatch[1]) {
+            const tpsNum = parseInt(tpsNumMatch[1], 10);
+            const matchedTps = loadedTps.find(t => {
+              const codeNum = parseInt(t.code.replace(/\D/g, ''), 10);
+              return codeNum === tpsNum;
+            });
+
+            if (matchedTps) {
+              assignedTpsId = matchedTps.polling_station_id;
+              displayName = `Petugas ${matchedTps.code} (${matchedTps.banjar_name})`;
+
+              // Self-healing: Jika tps_id di Supabase tidak cocok, sinkronkan ke DB di background
+              if (p.tps_id !== matchedTps.polling_station_id) {
+                supabase
+                  .from('profiles')
+                  .update({
+                    tps_id: matchedTps.polling_station_id,
+                    full_name: displayName
+                  })
+                  .eq('id', p.id)
+                  .then(() => {});
+              }
+            }
+          }
+
+          reconciledOps.push({
+            id: p.id,
+            full_name: displayName,
+            email: p.email || '',
+            phone: p.phone || '',
+            tps_id: assignedTpsId,
+            role: (p.role === 'admin' ? 'admin' : 'operator') as any,
+            active_session_token: p.active_session_token || null,
+            last_active_at: p.last_active_at || null,
+            device_info: p.device_info || null,
+            created_at: p.created_at
+          });
+        });
+
+        // Urutkan numerik: Admin paling atas, lalu TPS 01 s/d TPS 09
+        reconciledOps.sort((a, b) => {
+          if (a.role === 'admin') return -1;
+          if (b.role === 'admin') return 1;
+          const numA = parseInt((a.email || '').replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt((b.email || '').replace(/\D/g, ''), 10) || 0;
+          if (numA !== numB) return numA - numB;
+          return (a.email || '').localeCompare(b.email || '');
+        });
+
+        setOfficersList(reconciledOps);
+        localStorage.setItem('belega_officers', JSON.stringify(reconciledOps));
       }
 
       // 5. Fetch Audit Logs from Supabase
@@ -1004,6 +1051,38 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     }
   }, []);
 
+  const resetOfficerSession = useCallback(async (officerId: string) => {
+    setOfficersList(prev => {
+      const updated = prev.map(o => {
+        if (o.id === officerId) {
+          return {
+            ...o,
+            active_session_token: null,
+            last_active_at: null,
+            device_info: null
+          };
+        }
+        return o;
+      });
+      localStorage.setItem('belega_officers', JSON.stringify(updated));
+      notifySync();
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.rpc('admin_reset_operator_session', {
+          p_officer_id: officerId
+        });
+        if (error) {
+          console.error('admin_reset_operator_session RPC error:', error.message);
+        }
+      } catch (err) {
+        console.error('Failed to reset session on Supabase:', err);
+      }
+    }
+  }, []);
+
   return {
     summary,
     tpsList,
@@ -1026,6 +1105,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
     addOfficer,
     updateOfficer,
     deleteOfficer,
+    resetOfficerSession,
     auditLogs,
     addAuditLog
   };

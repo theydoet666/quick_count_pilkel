@@ -9,6 +9,7 @@ interface OfficerManagementTabProps {
   onAddOfficer: (officer: Omit<OfficerUser, 'id' | 'created_at'>) => void;
   onUpdateOfficer: (id: string, updates: Partial<OfficerUser>) => void;
   onDeleteOfficer: (id: string) => void;
+  onResetSession?: (id: string) => void;
 }
 
 export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
@@ -16,7 +17,8 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
   tpsList,
   onAddOfficer,
   onUpdateOfficer,
-  onDeleteOfficer
+  onDeleteOfficer,
+  onResetSession
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOfficer, setEditingOfficer] = useState<OfficerUser | null>(null);
@@ -141,6 +143,23 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
     }
   };
 
+  const handleResetSessionConfirm = async (officer: OfficerUser) => {
+    const tps = tpsList.find(t => t.polling_station_id === officer.tps_id);
+    const label = officer.role === 'admin' ? 'Admin' : (tps?.code || 'Operator TPS');
+    const confirmed = await showAlert.confirm({
+      title: 'Reset / Buka Kunci Sesi?',
+      text: `Apakah Anda yakin ingin mereset sesi aktif akun ${officer.full_name} (${label})? Sesi di perangkat yang sedang aktif akan dilepas sehingga akun dapat login kembali di perangkat baru.`,
+      confirmButtonText: 'Ya, Reset Sesi',
+      cancelButtonText: 'Batal',
+      icon: 'question',
+      confirmButtonClass: 'px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all mx-1 cursor-pointer'
+    });
+    if (confirmed && onResetSession) {
+      onResetSession(officer.id);
+      showAlert.toast(`Sesi akun ${officer.full_name} berhasil direset!`, 'success');
+    }
+  };
+
   const filteredOfficers = officersList.filter(o => {
     const tps = tpsList.find(t => t.polling_station_id === o.tps_id);
     const search = searchQuery.toLowerCase();
@@ -167,7 +186,7 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
               Kelola Petugas TPS & Panitia
             </h2>
             <p className="text-body-sm text-slate-500 text-xs sm:text-sm">
-              Kelola akun Panitia Pemilihan. Role <strong>Admin</strong> dapat mengakses & mengelola semua TPS, sedangkan <strong>Operator TPS</strong> dikhususkan untuk 1 TPS.
+              Kelola akun Panitia Pemilihan. Role <strong>Admin</strong> dapat mengakses & mengelola semua TPS, sedangkan <strong>Operator TPS</strong> dikhususkan untuk 1 TPS dan dilindungi dengan <strong>Single Active Session</strong>.
             </p>
           </div>
         </div>
@@ -225,13 +244,13 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
 
       {/* Officers Table */}
       <div className="overflow-x-auto border border-slate-200 rounded-xl">
-        <table className="w-full text-left border-collapse min-w-[640px]">
+        <table className="w-full text-left border-collapse min-w-[700px]">
           <thead className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
             <tr>
               <th className="py-3 px-4">Nama Pengguna</th>
-              <th className="py-3 px-4">Penugasan TPS / Akses</th>
+              <th className="py-3 px-4">Penugasan TPS</th>
+              <th className="py-3 px-4">Status Sesi</th>
               <th className="py-3 px-4">Email Login</th>
-              <th className="py-3 px-4">Password Bawaan</th>
               <th className="py-3 px-4">Kontak / WA</th>
               <th className="py-3 px-4 text-right">Aksi</th>
             </tr>
@@ -247,6 +266,12 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
               filteredOfficers.map((officer) => {
                 const isAdmin = officer.role === 'admin' || !officer.tps_id;
                 const tps = tpsList.find(t => t.polling_station_id === officer.tps_id);
+                const isOnline = Boolean(
+                  officer.active_session_token &&
+                  officer.last_active_at &&
+                  (Date.now() - new Date(officer.last_active_at).getTime() < 120000)
+                );
+
                 return (
                   <tr key={officer.id} className="hover:bg-slate-50 transition-colors">
                     {/* Name */}
@@ -286,17 +311,28 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
                       )}
                     </td>
 
+                    {/* Session Status */}
+                    <td className="py-3 px-4">
+                      {isAdmin ? (
+                        <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                          Multi-Device
+                        </span>
+                      ) : isOnline ? (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 border border-rose-300 text-rose-800 text-[11px] font-bold">
+                          <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                          <span>Aktif (Terkunci)</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-medium">
+                          <span className="w-2 h-2 rounded-full bg-slate-400" />
+                          <span>Offline / Tersedia</span>
+                        </div>
+                      )}
+                    </td>
+
                     {/* Email */}
                     <td className="py-3 px-4 font-mono text-xs text-slate-700">
                       {officer.email}
-                    </td>
-
-                    {/* Password */}
-                    <td className="py-3 px-4 font-mono text-xs text-slate-500">
-                      {isSupabaseConfigured
-                        ? <span className="text-slate-400 italic">dikelola Supabase Auth</span>
-                        : (officer.password || <span className="text-slate-400 italic">tidak diset</span>)
-                      }
                     </td>
 
                     {/* Phone */}
@@ -306,6 +342,18 @@ export const OfficerManagementTab: React.FC<OfficerManagementTabProps> = ({
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      {/* Reset Session Button (Only if Operator is currently online) */}
+                      {!isAdmin && isOnline && onResetSession && (
+                        <button
+                          onClick={() => handleResetSessionConfirm(officer)}
+                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1 cursor-pointer"
+                          title="Buka kunci sesi aktif akun ini"
+                        >
+                          <span className="material-symbols-outlined text-xs">lock_open</span>
+                          <span>Reset Sesi</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => openEditModal(officer)}
                         className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center cursor-pointer"

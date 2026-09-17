@@ -48,6 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     addOfficer,
     updateOfficer,
     deleteOfficer,
+    resetOfficerSession,
     auditLogs
   } = useRealtimeResults();
   
@@ -138,23 +139,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 1. Resolve Effective TPS ID for Operator
   const isOperator = role === 'operator';
 
-  // Resolusi penugasan TPS cerdas:
-  // a. Dari props tpsId (Supabase Profile)
-  // b. Dari data currentOfficer.tps_id
-  // c. Dari pola email (mis. tps03@... cocok otomatis dengan TPS 03 / TPS 3)
-  const matchedTpsByEmail = isOperator ? tpsList.find(t => {
-    const emailNumMatch = userEmail.match(/tps0*(\d+)/i);
-    if (emailNumMatch && emailNumMatch[1]) {
-      const emailNum = parseInt(emailNumMatch[1], 10);
-      const codeNumMatch = t.code.match(/0*(\d+)/);
-      if (codeNumMatch && codeNumMatch[1]) {
-        return emailNum === parseInt(codeNumMatch[1], 10);
-      }
-    }
-    return false;
+  // Resolusi penugasan TPS cerdas & presisi:
+  // 1. Dari pola email (mis. tps01@... atau tps1@... PASTI mengarah ke TPS 01)
+  // 2. Dari props tpsId (Supabase Profile)
+  // 3. Dari data currentOfficer.tps_id
+  const emailTpsNumMatch = userEmail.match(/tps0*(\d+)/i);
+  const emailTpsNum = emailTpsNumMatch && emailTpsNumMatch[1] ? parseInt(emailTpsNumMatch[1], 10) : null;
+
+  const matchedTpsByEmail = (isOperator && emailTpsNum !== null) ? tpsList.find(t => {
+    const codeNum = parseInt(t.code.replace(/\D/g, ''), 10);
+    return codeNum === emailTpsNum;
   }) : null;
 
-  const effectiveTpsId = tpsId || currentOfficer?.tps_id || matchedTpsByEmail?.polling_station_id || null;
+  const effectiveTpsId = matchedTpsByEmail?.polling_station_id || tpsId || currentOfficer?.tps_id || null;
   const assignedTps = isOperator && effectiveTpsId ? tpsList.find(t => t.polling_station_id === effectiveTpsId) : null;
 
   // PRINSIP KEAMANAN KETAT:
@@ -831,6 +828,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onAddOfficer={addOfficer}
               onUpdateOfficer={updateOfficer}
               onDeleteOfficer={deleteOfficer}
+              onResetSession={resetOfficerSession}
             />
           )}
 

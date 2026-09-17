@@ -78,7 +78,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
         // 2. TPS & Officers
         const savedTps = localStorage.getItem('belega_tps_recap');
         const loadedTps: TPSRecapItem[] = savedTps ? JSON.parse(savedTps) : MOCK_TPS_RECAP;
-        setTpsList(loadedTps);
+        
+        // Urutkan TPS secara numerik berdasarkan kode TPS (TPS 01 s/d TPS 09)
+        const sortedTps = [...loadedTps].sort((a, b) => {
+          const numA = parseInt(a.code.replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt(b.code.replace(/\D/g, ''), 10) || 0;
+          return numA - numB;
+        });
+        setTpsList(sortedTps);
 
         const savedOfficers = localStorage.getItem('belega_officers');
         const rawOfficers: OfficerUser[] = savedOfficers ? JSON.parse(savedOfficers) : MOCK_OFFICERS;
@@ -92,28 +99,59 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
           created_at: new Date().toISOString()
         };
 
-        const validOperators = rawOfficers.filter(o => o.role === 'operator' && o.tps_id);
+        const validOperators = rawOfficers.filter(o => o.role === 'operator');
         
-        // Ensure all TPS have an operator entry
-        const completeOperators: OfficerUser[] = loadedTps.map((tps, idx) => {
-          const existing = validOperators.find(o => o.tps_id === tps.polling_station_id);
-          if (existing) return existing;
+        // Ensure all TPS have an operator entry with strictly accurate email and tps_id mapping
+        const completeOperators: OfficerUser[] = sortedTps.map((tps) => {
+          const tpsNum = parseInt(tps.code.replace(/\D/g, ''), 10) || 1;
+          const tpsFormatted = tpsNum < 10 ? `0${tpsNum}` : `${tpsNum}`;
+          const expectedEmail = `tps${tpsFormatted}@pilkel.belega.id`;
+          const canonicalId = `off-tps-${tpsFormatted}`;
+
+          // Cari apakah akun petugas sudah ada sebelumnya (berdasarkan email resmi)
+          const existing = validOperators.find(
+            o => o.email?.toLowerCase() === expectedEmail.toLowerCase()
+          );
+
+          if (existing) {
+            return {
+              ...existing,
+              id: existing.id || canonicalId,
+              full_name: `Petugas ${tps.code} (${tps.banjar_name})`,
+              tps_id: tps.polling_station_id,
+              email: expectedEmail,
+              role: 'operator'
+            };
+          }
+
           return {
-            id: `op-${tps.polling_station_id}`,
+            id: canonicalId,
             full_name: `Petugas ${tps.code} (${tps.banjar_name})`,
-            email: `tps${(idx + 1) < 10 ? '0' + (idx + 1) : idx + 1}@pilkel.belega.id`,
+            email: expectedEmail,
+            password: 'password123',
             tps_id: tps.polling_station_id,
             role: 'operator',
             created_at: new Date().toISOString()
           };
         });
 
+        // Urutkan numerik: TPS 01 s/d TPS 09
+        completeOperators.sort((a, b) => {
+          const numA = parseInt((a.email || '').replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt((b.email || '').replace(/\D/g, ''), 10) || 0;
+          return numA - numB;
+        });
+
         const allAvailableAccounts = [defaultAdmin, ...completeOperators];
         setOfficers(allAvailableAccounts);
+        localStorage.setItem('belega_officers', JSON.stringify(allAvailableAccounts));
 
         if (allAvailableAccounts.length > 0) {
           // Default selection to Admin account
-          setSelectedAccountId(defaultAdmin.id || allAvailableAccounts[0].id);
+          setSelectedAccountId(prev => {
+            const stillExists = allAvailableAccounts.some(a => a.id === prev);
+            return stillExists ? prev : (defaultAdmin.id || allAvailableAccounts[0].id);
+          });
         }
       } catch {
         setOfficers(MOCK_OFFICERS);
@@ -327,10 +365,16 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
                         .filter(o => o.role === 'operator')
                         .map(off => {
                           const tps = tpsList.find(t => t.polling_station_id === off.tps_id);
-                          const tpsLabel = tps ? `${tps.code} (${tps.banjar_name})` : 'TPS';
+                          const tpsLabel = tps ? `${tps.code} (${tps.banjar_name})` : off.full_name;
+                          const isOnline = Boolean(
+                            off.active_session_token &&
+                            off.last_active_at &&
+                            (Date.now() - new Date(off.last_active_at).getTime() < 120000)
+                          );
+                          const statusIcon = isOnline ? '🔴 [Sedang Aktif]' : '🟢 [Tersedia]';
                           return (
                             <option key={off.id} value={off.id}>
-                              {tpsLabel} • {off.full_name} ({off.email})
+                              {statusIcon} {tpsLabel}
                             </option>
                           );
                         })}
@@ -343,50 +387,85 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBackToPublic 
               </div>
 
               {/* Selected Account Info Card */}
-              {selectedOfficer && (
-                <div className={`p-2.5 rounded-xl border transition-all ${
-                  selectedOfficer.role === 'admin'
-                    ? 'bg-amber-50/70 border-amber-200'
-                    : 'bg-emerald-50/70 border-emerald-200'
-                }`}>
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+              {selectedOfficer && (() => {
+                const isOnline = Boolean(
+                  selectedOfficer.role === 'operator' &&
+                  selectedOfficer.active_session_token &&
+                  selectedOfficer.last_active_at &&
+                  (Date.now() - new Date(selectedOfficer.last_active_at).getTime() < 120000)
+                );
+                return (
+                  <div className="space-y-2">
+                    <div className={`p-2.5 rounded-xl border transition-all ${
                       selectedOfficer.role === 'admin'
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'bg-emerald-700 text-white shadow-xs'
+                        ? 'bg-amber-50/70 border-amber-200'
+                        : isOnline
+                        ? 'bg-rose-50/80 border-rose-300'
+                        : 'bg-emerald-50/70 border-emerald-200'
                     }`}>
-                      <span className="material-symbols-outlined text-lg">
-                        {selectedOfficer.role === 'admin' ? 'admin_panel_settings' : 'badge'}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-xs text-slate-900 truncate">
-                          {selectedOfficer.full_name}
-                        </span>
-                        <span className={`text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-md ${
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                           selectedOfficer.role === 'admin'
-                            ? 'bg-amber-200/80 text-amber-900 border border-amber-300'
-                            : 'bg-emerald-200/80 text-emerald-900 border border-emerald-300'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : isOnline
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-emerald-700 text-white shadow-xs'
                         }`}>
-                          {selectedOfficer.role === 'admin' ? 'PANITIA UTAMA' : (assignedTps ? assignedTps.code : 'OPERATOR')}
-                        </span>
-                      </div>
+                          <span className="material-symbols-outlined text-lg">
+                            {selectedOfficer.role === 'admin' ? 'admin_panel_settings' : isOnline ? 'lock_person' : 'badge'}
+                          </span>
+                        </div>
 
-                      <div className="text-[10.5px] text-slate-600 truncate mt-0.5 flex items-center gap-1">
-                        <span>{selectedOfficer.email}</span>
-                        {assignedTps && (
-                          <>
-                            <span className="text-slate-400">•</span>
-                            <span className="font-medium text-emerald-800">{assignedTps.banjar_name}</span>
-                          </>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-slate-900 truncate">
+                              {selectedOfficer.full_name}
+                            </span>
+                            <span className={`text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-md ${
+                              selectedOfficer.role === 'admin'
+                                ? 'bg-amber-200/80 text-amber-900 border border-amber-300'
+                                : isOnline
+                                ? 'bg-rose-200 text-rose-900 border border-rose-300'
+                                : 'bg-emerald-200/80 text-emerald-900 border border-emerald-300'
+                            }`}>
+                              {selectedOfficer.role === 'admin' ? 'PANITIA UTAMA' : (assignedTps ? assignedTps.code : 'OPERATOR')}
+                            </span>
+                            {selectedOfficer.role === 'operator' && (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
+                                isOnline
+                                  ? 'bg-rose-600 text-white animate-pulse'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {isOnline ? 'SEDANG AKTIF' : 'TERSEDIA'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[10.5px] text-slate-600 truncate mt-0.5 flex items-center gap-1">
+                            <span>{selectedOfficer.email}</span>
+                            {assignedTps && (
+                              <>
+                                <span className="text-slate-400">•</span>
+                                <span className="font-medium text-emerald-800">{assignedTps.banjar_name}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Warning if account is currently active */}
+                    {isOnline && (
+                      <div className="p-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-[11px] leading-tight flex items-start gap-1.5 animate-fadeIn">
+                        <span className="material-symbols-outlined text-sm text-amber-700 shrink-0 mt-0.5">warning</span>
+                        <span>
+                          Akun ini sedang aktif di perangkat lain. Untuk mencegah salah login antar-petugas, login baru akan ditolak kecuali sesi ditutup atau direset oleh Admin.
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </>
           ) : (
             /* Manual Input Mode */

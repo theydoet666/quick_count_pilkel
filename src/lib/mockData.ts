@@ -135,9 +135,9 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     vote_margin: 0
   },
   {
-    polling_station_id: 'a7777777-7777-7777-7777-777777777777',
+    polling_station_id: '72295af5-5a9c-4775-9c6b-eadbcd083e4a',
     code: 'TPS 07',
-    banjar_name: 'Banjar Jasri',
+    banjar_name: 'Balai Banjar Jasri',
     registered_voters: 620,
     additional_voters: 7,
     status: 'pending',
@@ -152,7 +152,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     vote_margin: 0
   },
   {
-    polling_station_id: 'a8888888-8888-8888-8888-888888888888',
+    polling_station_id: 'a2dc05e2-4957-4380-9b4b-7f3b59d04b14',
     code: 'TPS 08',
     banjar_name: 'SD N 3 Belega',
     registered_voters: 635,
@@ -169,7 +169,7 @@ export const MOCK_TPS_RECAP: TPSRecapItem[] = [
     vote_margin: 0
   },
   {
-    polling_station_id: 'a9999999-9999-9999-9999-999999999999',
+    polling_station_id: 'a58f6c7e-85b7-480c-a087-b108f3140b99',
     code: 'TPS 09',
     banjar_name: 'SD N 3 Belega',
     registered_voters: 615,
@@ -278,89 +278,99 @@ export const MOCK_OFFICERS: OfficerUser[] = [
     id: 'off-admin',
     full_name: 'I Gede Ketut (Ketua Panitia)',
     email: 'admin@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567800',
     tps_id: null,
     role: 'admin',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-1',
-    full_name: 'Petugas Banjar Pasdalem (TPS 01)',
+    id: 'off-tps-01',
+    full_name: 'Petugas TPS 01 (Banjar Pasdalem)',
     email: 'tps01@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567801',
     tps_id: 'a1111111-1111-1111-1111-111111111111',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-2',
-    full_name: 'Petugas Gedung Serba Guna (TPS 02)',
+    id: 'off-tps-02',
+    full_name: 'Petugas TPS 02 (Gedung Serba Guna)',
     email: 'tps02@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567802',
     tps_id: 'a2222222-2222-2222-2222-222222222222',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-3',
-    full_name: 'Petugas Gedung Serba Guna (TPS 03)',
+    id: 'off-tps-03',
+    full_name: 'Petugas TPS 03 (Gedung Serba Guna)',
     email: 'tps03@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567803',
     tps_id: 'a3333333-3333-3333-3333-333333333333',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-4',
-    full_name: 'Petugas Banjar Kebon Kelod (TPS 04)',
+    id: 'off-tps-04',
+    full_name: 'Petugas TPS 04 (Banjar Kebon Kelod)',
     email: 'tps04@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567804',
     tps_id: 'a4444444-4444-4444-4444-444444444444',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-5',
-    full_name: 'Petugas Banjar Kebon Kaja (TPS 05)',
+    id: 'off-tps-05',
+    full_name: 'Petugas TPS 05 (Banjar Kebon Kaja)',
     email: 'tps05@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567805',
     tps_id: 'a5555555-5555-5555-5555-555555555555',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-6',
-    full_name: 'Petugas Banjar Belega Kanginan (TPS 06)',
+    id: 'off-tps-06',
+    full_name: 'Petugas TPS 06 (Banjar Belega Kanginan)',
     email: 'tps06@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567806',
     tps_id: 'a6666666-6666-6666-6666-666666666666',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-7',
-    full_name: 'Petugas Banjar Jasri (TPS 07)',
+    id: 'off-tps-07',
+    full_name: 'Petugas TPS 07 (Balai Banjar Jasri)',
     email: 'tps07@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567807',
-    tps_id: 'a7777777-7777-7777-7777-777777777777',
+    tps_id: '72295af5-5a9c-4775-9c6b-eadbcd083e4a',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-8',
-    full_name: 'Petugas SD N 3 Belega (TPS 08)',
+    id: 'off-tps-08',
+    full_name: 'Petugas TPS 08 (SD N 3 Belega)',
     email: 'tps08@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567808',
-    tps_id: 'a8888888-8888-8888-8888-888888888888',
+    tps_id: 'a2dc05e2-4957-4380-9b4b-7f3b59d04b14',
     role: 'operator',
     created_at: new Date().toISOString()
   },
   {
-    id: 'off-9',
-    full_name: 'Petugas SD N 3 Belega (TPS 09)',
+    id: 'off-tps-09',
+    full_name: 'Petugas TPS 09 (SD N 3 Belega)',
     email: 'tps09@pilkel.belega.id',
+    password: 'password123',
     phone: '081234567809',
-    tps_id: 'a9999999-9999-9999-9999-999999999999',
+    tps_id: 'a58f6c7e-85b7-480c-a087-b108f3140b99',
     role: 'operator',
     created_at: new Date().toISOString()
   }

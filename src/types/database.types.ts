@@ -9,6 +9,9 @@ export interface Profile {
   tps_id?: string | null;
   email?: string;
   phone?: string;
+  active_session_token?: string | null;
+  last_active_at?: string | null;
+  device_info?: string | null;
   created_at: string;
 }
 
@@ -20,6 +23,9 @@ export interface OfficerUser {
   phone?: string;
   tps_id?: string | null;
   role: 'admin' | 'operator';
+  active_session_token?: string | null;
+  last_active_at?: string | null;
+  device_info?: string | null;
   created_at: string;
 }
 

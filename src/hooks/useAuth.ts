@@ -3,6 +3,17 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserRole, Profile, OfficerUser } from '../types/database.types';
 import { MOCK_OFFICERS } from '../lib/mockData';
 
+// Unique Device Session Token Management
+const getDeviceSessionToken = (): string => {
+  if (typeof window === 'undefined') return 'server-token';
+  let token = sessionStorage.getItem('belega_device_session_token');
+  if (!token) {
+    token = 'sess-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    sessionStorage.setItem('belega_device_session_token', token);
+  }
+  return token;
+};
+
 export function useAuth() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -53,6 +64,50 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Heartbeat interval untuk memperbarui status aktivitas sesi setiap 45 detik
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const sessionToken = getDeviceSessionToken();
+
+    const sendHeartbeat = async () => {
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.rpc('heartbeat_operator_session', {
+            p_session_token: sessionToken
+          });
+        } catch (err) {
+          console.debug('Heartbeat ping failed:', err);
+        }
+      } else {
+        // Mode demo: update timestamp di localStorage
+        try {
+          const savedOfficersStr = localStorage.getItem('belega_officers');
+          if (savedOfficersStr) {
+            const officers: OfficerUser[] = JSON.parse(savedOfficersStr);
+            const updated = officers.map(o => {
+              if (o.id === profile.id || o.email.toLowerCase() === user.email.toLowerCase()) {
+                return {
+                  ...o,
+                  active_session_token: sessionToken,
+                  last_active_at: new Date().toISOString()
+                };
+              }
+              return o;
+            });
+            localStorage.setItem('belega_officers', JSON.stringify(updated));
+          }
+        } catch (_) {}
+      }
+    };
+
+    // Kirim heartbeat pertama dan ulangi tiap 45 detik
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 45000);
+
+    return () => clearInterval(interval);
+  }, [user, profile]);
+
   const fetchProfile = async (userId: string, userEmail?: string): Promise<boolean> => {
     try {
       // 1. Coba cari profile berdasarkan id (auth.users.id)
@@ -76,10 +131,42 @@ export function useAuth() {
         }
       }
 
-      // 3. Fallback cerdas untuk akun resmi pilkel (admin@... atau tpsXX@...)
-      if (!data && userEmail) {
-        const emailLower = userEmail.toLowerCase();
-        if (emailLower.startsWith('admin@')) {
+      // 3. Resolusi & Fallback Cerdas untuk akun resmi pilkel (admin@... atau tpsXX@...)
+      const emailLower = (userEmail || data?.email || '').toLowerCase();
+      if (emailLower.startsWith('tps')) {
+        const numMatch = emailLower.match(/tps0*(\d+)/);
+        const tpsNum = numMatch ? parseInt(numMatch[1], 10) : null;
+        
+        if (tpsNum) {
+          try {
+            const { data: tpsData } = await supabase.from('polling_stations').select('id, code, banjar_name');
+            if (tpsData && tpsData.length > 0) {
+              const matchedTps = tpsData.find(t => {
+                const codeNum = parseInt(t.code.replace(/\D/g, ''), 10);
+                return codeNum === tpsNum;
+              });
+              if (matchedTps) {
+                if (!data) {
+                  data = {
+                    id: userId,
+                    full_name: `Petugas Operator TPS ${tpsNum < 10 ? '0' + tpsNum : tpsNum} (${matchedTps.banjar_name})`,
+                    role: 'operator',
+                    tps_id: matchedTps.id,
+                    email: userEmail,
+                    created_at: new Date().toISOString()
+                  };
+                } else {
+                  // Pastikan tps_id konsisten dengan nomor TPS di email
+                  data.tps_id = matchedTps.id;
+                  if (!data.email && userEmail) data.email = userEmail;
+                  if (!data.role) data.role = 'operator';
+                }
+              }
+            }
+          } catch {}
+        }
+      } else if (emailLower.startsWith('admin@')) {
+        if (!data) {
           data = {
             id: userId,
             full_name: 'I Gede Ketut (Ketua Panitia)',
@@ -87,30 +174,10 @@ export function useAuth() {
             email: userEmail,
             created_at: new Date().toISOString()
           };
-        } else if (emailLower.startsWith('tps')) {
-          const numMatch = emailLower.match(/tps(\d+)/);
-          const tpsNum = numMatch ? parseInt(numMatch[1], 10) : null;
-          
-          let assignedTpsId: string | null = null;
-          try {
-            const { data: tpsData } = await supabase.from('polling_stations').select('id, code, banjar_name');
-            if (tpsData && tpsNum) {
-              const matchedTps = tpsData.find(t => {
-                const match = t.code.match(/(\d+)/);
-                return match && parseInt(match[1], 10) === tpsNum;
-              });
-              if (matchedTps) assignedTpsId = matchedTps.id;
-            }
-          } catch {}
-
-          data = {
-            id: userId,
-            full_name: `Petugas Operator TPS ${tpsNum ? (tpsNum < 10 ? '0' + tpsNum : tpsNum) : ''}`,
-            role: 'operator',
-            tps_id: assignedTpsId,
-            email: userEmail,
-            created_at: new Date().toISOString()
-          };
+        } else {
+          data.role = 'admin';
+          data.tps_id = null;
+          if (!data.email && userEmail) data.email = userEmail;
         }
       }
 
@@ -124,6 +191,23 @@ export function useAuth() {
         }
         return false;
       } else {
+        // Sync profile to database so public.profiles always matches auth.users exactly
+        if (isSupabaseConfigured && userEmail) {
+          try {
+            await supabase
+              .from('profiles')
+              .upsert({
+                id: userId,
+                email: userEmail,
+                full_name: data.full_name,
+                role: data.role,
+                tps_id: data.tps_id
+              });
+          } catch (syncErr) {
+            console.debug('Profile sync upsert error:', syncErr);
+          }
+        }
+
         setProfile(data as Profile);
         setAuthError(null);
         return true;
@@ -142,7 +226,7 @@ export function useAuth() {
     }
   };
 
-  // Login via Supabase Auth (mode produksi)
+  // Login via Supabase Auth (mode produksi) dengan perlindungan Single Active Session
   const loginWithSupabase = async (email: string, password: string) => {
     setLoading(true);
     setAuthError(null);
@@ -153,6 +237,36 @@ export function useAuth() {
         return { error: { message: error.message || 'Email atau kata sandi salah. Silakan coba lagi.' } };
       }
       if (data.user) {
+        // 1. Klaim Sesi via RPC claim_operator_session
+        const sessionToken = getDeviceSessionToken();
+        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Web Browser';
+        
+        try {
+          const { data: claimRes, error: claimErr } = await supabase.rpc('claim_operator_session', {
+            p_officer_id: data.user.id,
+            p_session_token: sessionToken,
+            p_device_info: userAgent,
+            p_email: data.user.email || email
+          });
+
+          if (claimErr || (claimRes && claimRes.success === false)) {
+            // Sesi sedang aktif di perangkat lain!
+            await supabase.auth.signOut();
+            setLoading(false);
+            
+            const tpsMatch = email.match(/tps0*(\d+)/i);
+            const tpsLabel = tpsMatch ? `TPS ${tpsMatch[1].padStart(2, '0')}` : 'Operator';
+            
+            return {
+              error: {
+                message: `Akun Petugas ${tpsLabel} saat ini sedang aktif digunakan oleh perangkat lain. Jika ini bukan Anda atau sesi sebelumnya belum ditutup, silakan hubungi Ketua Panitia/Admin untuk mereset sesi.`
+              }
+            };
+          }
+        } catch (claimEx) {
+          console.warn('claim_operator_session RPC check bypass or fallback:', claimEx);
+        }
+
         setUser({ id: data.user.id, email: data.user.email || '' });
         const profileOk = await fetchProfile(data.user.id, data.user.email);
         if (!profileOk) {
@@ -169,12 +283,7 @@ export function useAuth() {
   };
 
   // ==========================================================================
-  // PERINGATAN KEAMANAN KRITIS (MODE DEMO OFFLINE):
-  // Fungsi loginWithMock() di bawah ini HANYA boleh aktif pada mode pengembangan
-  // lokal (DEV). Mode ini TIDAK BOLEH PERNAH ter-deploy ke lingkungan produksi!
-  // Alasan: Seluruh autentikasi & otorisasi berjalan di sisi client/browser tanpa
-  // validasi kriptografis token sesi server, tanpa hash password terenkripsi,
-  // dan tanpa perlindungan Row Level Security (RLS) PostgreSQL.
+  // MODE DEMO OFFLINE (loginWithMock dengan validasi Single Active Session)
   // ==========================================================================
   const loginWithMock = (email: string, password: string): { error: { message: string } | null } => {
     // Mode demo dilarang keras aktif pada build produksi
@@ -203,6 +312,37 @@ export function useAuth() {
       return { error: { message: 'Kata sandi yang Anda masukkan salah.' } };
     }
 
+    // Validasi Single Active Session pada Operator TPS
+    const sessionToken = getDeviceSessionToken();
+    if (foundOfficer.role === 'operator' && foundOfficer.active_session_token && foundOfficer.last_active_at) {
+      const lastActiveTime = new Date(foundOfficer.last_active_at).getTime();
+      const now = Date.now();
+      const isExpired = (now - lastActiveTime) > 120000; // 2 menit timeout
+
+      if (!isExpired && foundOfficer.active_session_token !== sessionToken) {
+        const tpsMatch = email.match(/tps0*(\d+)/i);
+        const tpsLabel = tpsMatch ? `TPS ${tpsMatch[1].padStart(2, '0')}` : 'Operator';
+        return {
+          error: {
+            message: `Akun Petugas ${tpsLabel} saat ini sedang aktif digunakan oleh perangkat/tab lain. Silakan logout dari tab sebelumnya atau hubungi Ketua Panitia.`
+          }
+        };
+      }
+    }
+
+    // Simpan token sesi baru pada officer
+    const updatedOfficers = officersList.map(o => {
+      if (o.id === foundOfficer.id || o.email.toLowerCase() === foundOfficer.email.toLowerCase()) {
+        return {
+          ...o,
+          active_session_token: sessionToken,
+          last_active_at: new Date().toISOString()
+        };
+      }
+      return o;
+    });
+    localStorage.setItem('belega_officers', JSON.stringify(updatedOfficers));
+
     const mockUser = { id: foundOfficer.id, email };
     const mockProf: Profile = {
       id: foundOfficer.id,
@@ -211,6 +351,8 @@ export function useAuth() {
       tps_id: foundOfficer.tps_id || null,
       email,
       phone: foundOfficer.phone,
+      active_session_token: sessionToken,
+      last_active_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
 
@@ -233,12 +375,45 @@ export function useAuth() {
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured) {
+    const sessionToken = getDeviceSessionToken();
+    const officerId = profile?.id || user?.id;
+    const userEmail = user?.email || profile?.email;
+
+    if (isSupabaseConfigured && officerId) {
+      try {
+        await supabase.rpc('release_operator_session', {
+          p_officer_id: officerId,
+          p_session_token: sessionToken
+        });
+      } catch (err) {
+        console.debug('Failed to release session RPC:', err);
+      }
       await supabase.auth.signOut();
+    } else if (officerId || userEmail) {
+      // Mode demo: bersihkan active_session_token di localStorage
+      try {
+        const savedOfficersStr = localStorage.getItem('belega_officers');
+        if (savedOfficersStr) {
+          const officers: OfficerUser[] = JSON.parse(savedOfficersStr);
+          const updated = officers.map(o => {
+            if ((officerId && o.id === officerId) || (userEmail && o.email.toLowerCase() === userEmail.toLowerCase())) {
+              return {
+                ...o,
+                active_session_token: null,
+                last_active_at: null
+              };
+            }
+            return o;
+          });
+          localStorage.setItem('belega_officers', JSON.stringify(updated));
+        }
+      } catch (_) {}
     }
+
     setUser(null);
     setProfile(null);
     setAuthError(null);
+    sessionStorage.removeItem('belega_device_session_token');
     localStorage.removeItem('belega_auth_user');
     localStorage.removeItem('belega_auth_profile');
   };
