@@ -187,26 +187,51 @@ CREATE POLICY "audit_logs_select_auth" ON public.audit_logs
 -- ------------------------------------------------------------------------------
 -- 7. Hardened RPC: log_audit_event
 -- ------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.log_audit_event(TEXT, UUID, JSONB);
+DROP FUNCTION IF EXISTS public.log_audit_event(TEXT, TEXT, UUID, JSONB, JSONB);
+
 CREATE OR REPLACE FUNCTION public.log_audit_event(
     p_action TEXT,
-    p_tps_id UUID DEFAULT NULL,
-    p_details JSONB DEFAULT '{}'::JSONB
+    p_table_name TEXT,
+    p_record_id UUID,
+    p_old_value JSONB DEFAULT NULL,
+    p_new_value JSONB DEFAULT NULL
 )
-RETURNS UUID AS $$
+RETURNS JSONB AS $$
 DECLARE
     v_log_id UUID;
     v_caller_id UUID := auth.uid();
 BEGIN
-    INSERT INTO public.audit_logs (actor_id, action, tps_id, details, created_at)
-    VALUES (v_caller_id, p_action, p_tps_id, p_details, NOW())
+    IF v_caller_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+    END IF;
+
+    INSERT INTO public.audit_logs (
+        actor_id,
+        action,
+        table_name,
+        record_id,
+        old_value,
+        new_value,
+        created_at
+    )
+    VALUES (
+        v_caller_id,
+        p_action,
+        p_table_name,
+        p_record_id,
+        p_old_value,
+        p_new_value,
+        NOW()
+    )
     RETURNING id INTO v_log_id;
     
-    RETURN v_log_id;
+    RETURN jsonb_build_object('success', true, 'id', v_log_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
-REVOKE EXECUTE ON FUNCTION public.log_audit_event(TEXT, UUID, JSONB) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.log_audit_event(TEXT, UUID, JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.log_audit_event(TEXT, TEXT, UUID, JSONB, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.log_audit_event(TEXT, TEXT, UUID, JSONB, JSONB) TO authenticated;
 
 -- ------------------------------------------------------------------------------
 -- 8. K-2, T-4: Hardened RPC submit_tps_votes (NULL Bypass & Max Voters Validation)
@@ -313,7 +338,11 @@ BEGIN
     -- 8. Update Status TPS & Foto Bukti
     UPDATE public.polling_stations
     SET status = COALESCE(p_new_status::public.tps_status, status),
-        evidence_photo_url = COALESCE(p_evidence_photo_url, evidence_photo_url),
+        evidence_photo_url = CASE
+            WHEN p_evidence_photo_url = '' THEN NULL
+            WHEN p_evidence_photo_url IS NOT NULL THEN p_evidence_photo_url
+            ELSE evidence_photo_url
+        END,
         additional_voters = v_additional_voters,
         updated_at = NOW()
     WHERE id = p_tps_id;
@@ -321,7 +350,9 @@ BEGIN
     -- 9. Catat Audit Log
     PERFORM public.log_audit_event(
         'SUBMIT_VOTES',
+        'polling_stations',
         p_tps_id,
+        NULL,
         jsonb_build_object(
             'cand1', p_votes_cand1,
             'cand2', p_votes_cand2,
@@ -378,11 +409,10 @@ BEGIN
     -- R-3: Catat Audit Log Khusus untuk Verifikasi / Buka Kunci
     PERFORM public.log_audit_event(
         'UPDATE_TPS_STATUS',
+        'polling_stations',
         p_tps_id,
-        jsonb_build_object(
-            'previous_status', v_prev_status,
-            'new_status', p_status
-        )
+        jsonb_build_object('previous_status', v_prev_status),
+        jsonb_build_object('new_status', p_status)
     );
 
     RETURN jsonb_build_object('success', true, 'status', p_status);
@@ -552,7 +582,9 @@ BEGIN
 
     PERFORM public.log_audit_event(
         'ADMIN_RESET_SESSION',
-        (SELECT tps_id FROM public.profiles WHERE id = p_officer_id),
+        'profiles',
+        p_officer_id,
+        NULL,
         jsonb_build_object('reset_officer_id', p_officer_id)
     );
 
@@ -615,6 +647,14 @@ DROP POLICY IF EXISTS "evidence_photos_auth_insert" ON storage.objects;
 CREATE POLICY "evidence_photos_auth_insert" ON storage.objects
     FOR INSERT TO authenticated
     WITH CHECK (
+        bucket_id = 'evidence-photos' 
+        AND public.is_operator()
+    );
+
+DROP POLICY IF EXISTS "evidence_photos_auth_delete" ON storage.objects;
+CREATE POLICY "evidence_photos_auth_delete" ON storage.objects
+    FOR DELETE TO authenticated
+    USING (
         bucket_id = 'evidence-photos' 
         AND public.is_operator()
     );

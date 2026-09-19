@@ -817,7 +817,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
             ...item,
             additional_voters: additionalVoters !== undefined ? additionalVoters : (item.additional_voters || 0),
             status: newStatus || item.status,
-            evidence_photo_url: photoUrl !== undefined ? photoUrl : item.evidence_photo_url,
+            evidence_photo_url: photoUrl !== undefined ? (photoUrl || null) : item.evidence_photo_url,
             total_valid_votes: totalValid,
             invalid_votes_count: invalid,
             candidate_votes: {
@@ -858,7 +858,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
         tidak_sah: invalid,
         total_suara: totalValid + invalid,
         status: newStatus || prevTps?.status || 'submitted',
-        has_photo: Boolean(photoUrl || prevTps?.evidence_photo_url)
+        has_photo: Boolean(photoUrl || (photoUrl === undefined && prevTps?.evidence_photo_url))
       },
       actor_profile: actor ? {
         id: actor.id || 'usr-temp',
@@ -875,7 +875,7 @@ export function useRealtimeResults(electionId: string = MOCK_ELECTION.id) {
           p_votes_cand1: votes1,
           p_votes_cand2: votes2,
           p_invalid_votes: invalid,
-          p_evidence_photo_url: photoUrl || null,
+          p_evidence_photo_url: photoUrl !== undefined ? photoUrl : null,
           p_new_status: newStatus || 'submitted',
           p_additional_voters: additionalVoters !== undefined ? additionalVoters : null
         });
